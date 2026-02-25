@@ -20,6 +20,7 @@ Let's build up the tools and then put them to work.
 .. contents:: Topics in this chapter
    :local:
    :depth: 1
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 .. _sec_matrix_calculus:

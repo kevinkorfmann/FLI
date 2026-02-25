@@ -59,6 +59,7 @@ can see the mathematics earning its keep.
 .. contents:: Chapter Contents
    :local:
    :depth: 2
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 2.1 What Is a Random Variable?

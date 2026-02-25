@@ -55,6 +55,7 @@ assumption that makes likelihood-based inference possible.
 .. contents:: Chapter Contents
    :local:
    :depth: 2
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 1.1 Sample Spaces and Events

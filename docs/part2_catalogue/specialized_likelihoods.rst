@@ -25,6 +25,7 @@ Knowing which tool to reach for is a core skill in applied statistics.
 .. contents:: Topics in this chapter
    :local:
    :depth: 1
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 .. _sec_profile:

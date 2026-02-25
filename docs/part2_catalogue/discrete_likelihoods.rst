@@ -25,6 +25,7 @@ For every distribution we follow the same programme:
 .. contents:: Distributions in this chapter
    :local:
    :depth: 1
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 .. _sec_bernoulli:

@@ -19,6 +19,7 @@ same way. Let's dive in.
 .. contents:: Distributions in this chapter
    :local:
    :depth: 1
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 .. _sec_normal:

@@ -29,6 +29,7 @@ the formulas in this chapter are the starting point.
 .. contents:: Chapter Contents
    :local:
    :depth: 2
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 .. _sec_discrete_distributions:

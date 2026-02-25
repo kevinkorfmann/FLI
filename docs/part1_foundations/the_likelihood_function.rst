@@ -25,6 +25,7 @@ Exponential rate parameter* :math:`\lambda` *best explains the data you see?*
 .. contents:: Chapter Contents
    :local:
    :depth: 2
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 
 4.1 Likelihood vs. Probability: The Key Distinction
