@@ -149,54 +149,46 @@ latex_elements = {
 }
 ''',
     'maketitle': r'''
-\begin{titlepage}
-\begin{tikzpicture}[remember picture, overlay]
-  % --- Full-page cover image ---
-  \node[inner sep=0pt] at (current page.center) {%
-    \includegraphics[width=\paperwidth, height=\paperheight, keepaspectratio=false]{cover.jpg}%
-  };
-  % --- Dark gradient overlay for text legibility ---
-  \fill[black, opacity=0.55] (current page.south west) rectangle (current page.north east);
-  % --- Subtle top accent line ---
-  \fill[white, opacity=0.15]
-    ([yshift=-3.2cm]current page.north west) rectangle
-    ([yshift=-3.25cm]current page.north east);
-  % --- Title block ---
-  \node[anchor=north, text width=14cm, align=center]
-    at ([yshift=-4cm]current page.north) {%
-      {\fontsize{42}{50}\selectfont\bfseries\color{white}%
-       Likelihood-Based\\[6pt]Inference\par}%
-    };
-  % --- Subtitle ---
-  \node[anchor=north, text width=14cm, align=center]
-    at ([yshift=-8.2cm]current page.north) {%
-      {\fontsize{18}{24}\selectfont\color{white!85}%
-       From Foundations to Research\par}%
-    };
-  % --- Thin decorative rule ---
-  \draw[white, opacity=0.4, line width=0.6pt]
-    ([yshift=-9.4cm, xshift=-4cm]current page.north) --
-    ([yshift=-9.4cm, xshift=4cm]current page.north);
-  % --- Author ---
-  \node[anchor=north, text width=14cm, align=center]
-    at ([yshift=-10.2cm]current page.north) {%
-      {\fontsize{14}{18}\selectfont\color{white!70}%
-       Kevin Korfmann\par}%
-    };
-  % --- Bottom tagline ---
-  \node[anchor=south, text width=14cm, align=center]
-    at ([yshift=2cm]current page.south) {%
-      {\fontsize{10}{14}\selectfont\color{white!50}%
-       A comprehensive guide from basic probability\\
-       through research-grade algorithms\par}%
-    };
-  % --- Year at very bottom ---
-  \node[anchor=south, text width=14cm, align=center]
-    at ([yshift=0.8cm]current page.south) {%
-      {\fontsize{9}{12}\selectfont\color{white!40} 2026\par}%
-    };
-\end{tikzpicture}
-\end{titlepage}
+\clearpage
+\thispagestyle{empty}
+% --- Full-page background image via eso-pic (xelatex-safe) ---
+\AddToShipoutPictureBG*{%
+  \AtPageLowerLeft{%
+    \includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio=false]{cover.jpg}%
+  }%
+}
+% --- Dark overlay for text legibility ---
+\AddToShipoutPictureBG*{%
+  \AtPageLowerLeft{%
+    \begin{tikzpicture}
+      \fill[black,opacity=0.58] (0pt,0pt) rectangle (\paperwidth,\paperheight);
+    \end{tikzpicture}%
+  }%
+}
+% --- Cover content ---
+\color{white}
+\null
+\vspace{4.5cm}
+\begin{center}
+  {\fontsize{46}{56}\selectfont\bfseries Likelihood-Based\par}
+  \vspace{0.25cm}
+  {\fontsize{46}{56}\selectfont\bfseries Inference\par}
+  \vspace{1.2cm}
+  {\color{white!40}\rule{8cm}{0.5pt}\par}
+  \vspace{1.2cm}
+  {\fontsize{18}{24}\selectfont\color{white!80} From Foundations to Research\par}
+  \vspace{1.4cm}
+  {\fontsize{13}{18}\selectfont\color{white!60}\textsc{Kevin Korfmann}\par}
+\end{center}
+\vfill
+\begin{center}
+  {\fontsize{9}{12}\selectfont\color{white!35}
+   A comprehensive guide from basic probability through research-grade algorithms\par}
+  \vspace{0.6cm}
+  {\fontsize{9}{12}\selectfont\color{white!25} 2026\par}
+\end{center}
+\vspace{1.8cm}
+\clearpage
 ''',
     'tableofcontents': r'\tableofcontents',
 }
