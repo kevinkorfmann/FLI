@@ -47,21 +47,26 @@ def main():
 
     compiler = shutil.which("latexmk")
     if compiler:
-        print("Compiling PDF with latexmk...")
-        run(["latexmk", "-pdf", "-interaction=nonstopmode",
-             "LikelihoodInference.tex"], cwd=BUILD_LATEX)
+        print("Compiling PDF with latexmk (xelatex)...")
+        result = subprocess.run(
+            ["latexmk", "-xelatex", "-f", "-interaction=nonstopmode",
+             "LikelihoodInference.tex"],
+            cwd=BUILD_LATEX,
+        )
     else:
-        print("Compiling PDF with pdflatex (3 passes)...")
+        print("Compiling PDF with xelatex (3 passes)...")
         for i in range(3):
             print(f"  Pass {i + 1}/3")
-            run(["pdflatex", "-interaction=nonstopmode",
-                 "LikelihoodInference.tex"], cwd=BUILD_LATEX)
+            subprocess.run(
+                ["xelatex", "-interaction=nonstopmode", "LikelihoodInference.tex"],
+                cwd=BUILD_LATEX,
+            )
 
     pdf = BUILD_LATEX / "LikelihoodInference.pdf"
     if pdf.exists():
         print(f"\nPDF built successfully: {pdf}")
     else:
-        print("\nWarning: PDF file not found after compilation.")
+        print("\nError: PDF file not found after compilation.")
         sys.exit(1)
 
 

@@ -121,7 +121,7 @@ html_sidebars = {
 }
 
 # -- LaTeX output ------------------------------------------------------------
-latex_engine = 'pdflatex'
+latex_engine = 'xelatex'
 
 latex_elements = {
     'papersize': 'letterpaper',
@@ -141,6 +141,12 @@ latex_elements = {
 \theoremstyle{remark}
 \newtheorem{remark}[theorem]{Remark}
 \newtheorem{example}[theorem]{Example}
+% Let hyperref handle math in section titles gracefully
+\pdfstringdefDisableCommands{%
+  \renewcommand{\boldsymbol}[1]{#1}%
+  \renewcommand{\bm}[1]{#1}%
+  \let\mathbb\@gobble
+}
 ''',
     'maketitle': r'''
 \begin{titlepage}
