@@ -135,26 +135,45 @@ div.math {
     background: #bab2a7;
 }
 
-/* Sidebar donate button */
+/* Sidebar donate section */
 .sidebar-donate {
-    padding: 0.75rem 1rem;
+    padding: 1rem 1rem 1.25rem;
+    border-top: 1px solid #e0d9cf;
+    margin-top: 0.5rem;
+}
+
+.donate-label {
+    font-size: 0.78rem;
+    color: #8c8078;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.02em;
 }
 
 .donate-button {
-    display: block;
-    text-align: center;
-    padding: 0.5em 1em;
-    background: #4a7c72;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45em;
+    padding: 0.6em 1.2em;
+    background: #003087;
     color: #fff !important;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 500;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
     text-decoration: none !important;
-    transition: background 0.2s;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 48, 135, 0.18);
 }
 
 .donate-button:hover {
-    background: #3d6e64;
+    background: #001f5b;
+    box-shadow: 0 3px 10px rgba(0, 48, 135, 0.28);
+}
+
+.donate-icon {
+    flex-shrink: 0;
+    opacity: 0.9;
 }
 
 /* Cover hero section for the landing page */
