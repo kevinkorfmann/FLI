@@ -219,8 +219,11 @@ We seek :math:`\mathbf{D}_{k+1}` that solves
    \mathbf{D}\,\mathbf{y}_k = \mathbf{s}_k,
    \quad \mathbf{D} = \mathbf{D}^{\!\top},
 
-where :math:`\|\cdot\|_W` is the weighted Frobenius norm
-:math:`\|A\|_W = \|W^{1/2} A\, W^{1/2}\|_F` with
+Reading this optimization problem: we want the new inverse-Hessian approximation
+:math:`\mathbf{D}_{k+1}` to be as close as possible to the old one (in the
+"minimum-change" sense of the weighted Frobenius norm), while satisfying the
+secant condition :math:`\mathbf{D}\mathbf{y}_k = \mathbf{s}_k` and remaining
+symmetric. The norm :math:`\|\cdot\|_W` uses a weight matrix
 :math:`W` chosen as a certain average Hessian. The solution (which can be
 verified by Lagrange multipliers on the matrix optimization) is the
 **BFGS inverse-Hessian update**:
@@ -239,6 +242,18 @@ where
 .. math::
 
    \rho_k = \frac{1}{\mathbf{y}_k^{\!\top}\mathbf{s}_k}.
+
+The scalar :math:`\rho_k` is one over the inner product of the gradient change
+and the step. It normalizes the update so that the secant condition is
+satisfied exactly.
+
+Reading the BFGS formula: the two outer factors
+:math:`(\mathbf{I} - \rho_k\,\mathbf{s}_k\,\mathbf{y}_k^{\!\top})` "project
+away" the component of :math:`\mathbf{D}_k` that is inconsistent with the new
+secant information, and the final
+:math:`\rho_k\,\mathbf{s}_k\,\mathbf{s}_k^{\!\top}` term adds back the
+correct curvature along the step direction. The result automatically satisfies
+:math:`\mathbf{D}_{k+1}\mathbf{y}_k = \mathbf{s}_k` (the secant condition).
 
 This is a **rank-2 update**: :math:`\mathbf{D}_{k+1}` differs from
 :math:`\mathbf{D}_k` by the addition of two rank-1 matrices, so the update
@@ -324,7 +339,9 @@ the formula :eq:`bfgs`:
    print(f"D_{'{k+1}'} (after BFGS update):\n{np.round(D_new, 4)}")
    print(f"Secant check D_new @ y_k = s_k: {np.allclose(D_new @ y_k, s_k)}")
 
-The Hessian-approximation form (updating :math:`\mathbf{B}_k` directly) is
+The Hessian-approximation form (updating :math:`\mathbf{B}_k` directly rather
+than its inverse) is sometimes useful for understanding or for trust-region
+methods:
 
 .. math::
 
@@ -334,6 +351,11 @@ The Hessian-approximation form (updating :math:`\mathbf{B}_k` directly) is
           {\mathbf{s}_k^{\!\top}\mathbf{B}_k\,\mathbf{s}_k}
    + \frac{\mathbf{y}_k\,\mathbf{y}_k^{\!\top}}
           {\mathbf{y}_k^{\!\top}\mathbf{s}_k}.
+
+Reading this: we subtract a rank-1 correction that removes the old Hessian
+approximation along the step direction, and add a rank-1 correction from the
+actual gradient change. The net effect is that
+:math:`\mathbf{B}_{k+1}\mathbf{s}_k = \mathbf{y}_k`, the secant condition.
 
 Positive Definiteness
 ----------------------
@@ -496,7 +518,13 @@ A good choice for the scaling is
    \gamma_k = \frac{\mathbf{s}_{k-1}^{\!\top}\mathbf{y}_{k-1}}
                     {\mathbf{y}_{k-1}^{\!\top}\mathbf{y}_{k-1}},
 
-which approximates the inverse Hessian's scale.
+which approximates the inverse Hessian's scale. To see why, note that for a
+quadratic :math:`f(\mathbf{x}) = \frac{1}{2}\mathbf{x}^{\!\top}\mathbf{H}\mathbf{x}`,
+the step is :math:`\mathbf{s} = \mathbf{H}^{-1}\mathbf{y}`, so the scale of
+the inverse Hessian is roughly
+:math:`\|\mathbf{s}\|^2 / (\mathbf{s}^{\!\top}\mathbf{y}) = \mathbf{s}^{\!\top}\mathbf{y} / \|\mathbf{y}\|^2`.
+This initial scaling ensures that the first search direction has the right
+order of magnitude, which is crucial for practical convergence.
 
 **Cost:** :math:`O(mp)` per iteration --- *linear* in :math:`p`. **Storage:**
 :math:`O(mp)`.
@@ -812,6 +840,15 @@ The **Symmetric Rank-1 (SR1)** update is an alternative to BFGS:
            (\mathbf{y}_k - \mathbf{B}_k\mathbf{s}_k)^{\!\top}}
           {(\mathbf{y}_k - \mathbf{B}_k\mathbf{s}_k)^{\!\top}\mathbf{s}_k}.
 
+Reading this formula: the vector
+:math:`\mathbf{y}_k - \mathbf{B}_k\mathbf{s}_k` is the *residual* --- the
+discrepancy between the actual gradient change :math:`\mathbf{y}_k` and what
+the current approximation :math:`\mathbf{B}_k` would predict
+(:math:`\mathbf{B}_k\mathbf{s}_k`). The SR1 update adds a single rank-1
+correction built from this residual, which is the simplest possible update
+that eliminates the error along the step direction. You can verify directly
+that :math:`\mathbf{B}_{k+1}\mathbf{s}_k = \mathbf{y}_k`.
+
 As the name suggests, this is a rank-1 update, costing :math:`O(p^2)`.
 
 The SR1 update has a remarkable property: if you could somehow feed it the true
@@ -962,9 +999,18 @@ At iteration :math:`k`, solve
 where :math:`\Delta_k > 0` is the **trust-region radius** and
 :math:`\mathbf{B}_k` is a (possibly indefinite) Hessian approximation.
 
+Reading this: :math:`m_k(\mathbf{d})` is the same quadratic model that Newton
+uses, but now we minimize it only within a ball of radius :math:`\Delta_k`
+around the current point. The model :math:`m_k` says "if the world were
+quadratic, moving by :math:`\mathbf{d}` would change the function value by
+the gradient term plus the curvature term." We only trust this prediction
+within a certain distance, so we restrict :math:`\|\mathbf{d}\| \leq \Delta_k`.
+
 This subproblem always has a solution, even when :math:`\mathbf{B}_k` is not
 positive definite --- the constraint :math:`\|\mathbf{d}\| \leq \Delta_k`
-regularizes the problem.
+regularizes the problem. In contrast, the unconstrained Newton step
+:math:`-\mathbf{B}_k^{-1}\nabla f_k` may not even exist when
+:math:`\mathbf{B}_k` is singular.
 
 Updating the Trust-Region Radius
 ---------------------------------
@@ -976,6 +1022,11 @@ actual to predicted reduction**:
 
    r_k = \frac{f(\boldsymbol{\theta}_k) - f(\boldsymbol{\theta}_k + \mathbf{d}_k)}
               {m_k(\mathbf{0}) - m_k(\mathbf{d}_k)}.
+
+The numerator is how much the function *actually* decreased; the denominator is
+how much the quadratic model *predicted* it would decrease. When
+:math:`r_k \approx 1`, the model is trustworthy. When :math:`r_k` is small or
+negative, the model was misleading.
 
 - If :math:`r_k > \eta_2` (e.g., :math:`\eta_2 = 0.75`): the model is very
   accurate; **expand** the trust region: :math:`\Delta_{k+1} = 2\Delta_k`.
@@ -1107,6 +1158,14 @@ where
    & \text{otherwise.}
    \end{cases}
 
+The factor :math:`\tau_k` is a step-size along the steepest-descent direction.
+If the curvature along the gradient is negative (the function curves *down*
+in the gradient direction), then the quadratic model says "go as far as you
+can" --- so :math:`\tau_k = 1` and we step all the way to the trust-region
+boundary. If the curvature is positive, the model has a finite minimizer along
+the gradient direction and we take the shorter of that minimizer and the
+trust-region boundary.
+
 The Dogleg Method
 ------------------
 
@@ -1190,8 +1249,13 @@ for :math:`t \in [0, 1]`.
         {\|\boldsymbol{\theta}_k - \boldsymbol{\theta}^*\|}
    = 0.
 
-This is faster than linear (:math:`\lim = c < 1`) but slower than quadratic
-(:math:`\|\cdot\| \leq C\|\cdot\|^2`). In practice, BFGS often converges nearly
+Reading this formula: the ratio of successive errors goes to zero. For linear
+convergence, this ratio would settle at some fixed constant :math:`c < 1` (you
+gain the same number of digits each iteration). For quadratic convergence, the
+errors shrink much faster (digits double each iteration). Superlinear
+convergence sits between the two: the error-reduction factor *improves* with
+every step, approaching zero, but it does not square the error as Newton does.
+In practice, BFGS often converges nearly
 as fast as Newton in the number of iterations, at a fraction of the cost.
 
 Let's see this convergence hierarchy in action by comparing all three methods on

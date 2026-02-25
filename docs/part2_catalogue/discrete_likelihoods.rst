@@ -53,7 +53,14 @@ The probability mass function is
 
    f(x \mid p) = p^{x}(1-p)^{1-x}, \qquad x \in \{0,1\}.
 
-When :math:`x=1` this gives :math:`p`; when :math:`x=0` it gives :math:`1-p`.
+This compact formula is a clever notational trick that packs two cases into
+one expression.  When :math:`x = 1` (success), the exponent on :math:`p` is 1
+and the exponent on :math:`(1-p)` is 0, so the formula reduces to just
+:math:`p`.  When :math:`x = 0` (failure), the exponent on :math:`p` is 0
+(making it 1) and the exponent on :math:`(1-p)` is 1, so the formula gives
+:math:`1-p`.  The beauty of this trick is that it lets us write a *single*
+algebraic expression that we can differentiate, multiply, and take logarithms
+of --- exactly what we need for likelihood-based inference.
 
 .. code-block:: python
 
@@ -85,16 +92,30 @@ Moments: :math:`E[X] = p` and :math:`\text{Var}(X) = p(1-p)`.
 Log-likelihood
 --------------
 
-Given :math:`n` i.i.d. observations :math:`x_1, \dots, x_n`, define
-:math:`s = \sum_{i=1}^{n} x_i` (the number of successes). The log-likelihood
-is
+Given :math:`n` i.i.d. observations :math:`x_1, \dots, x_n`, how do we build
+the likelihood?  Because the observations are independent, the joint
+probability is the product of the individual probabilities:
 
 .. math::
 
-   \ell(p) = s \ln p + (n - s) \ln(1 - p).
+   L(p) = \prod_{i=1}^{n} p^{x_i}(1-p)^{1-x_i}
+        = p^{\,\sum x_i}\,(1-p)^{\,n - \sum x_i}.
 
-The entire dataset collapses into a single number :math:`s` --- the sufficient
-statistic.
+In the second step we used the rule :math:`a^{b_1} \cdot a^{b_2} = a^{b_1+b_2}`
+to collect all the powers of :math:`p` and :math:`(1-p)`.
+
+Define :math:`s = \sum_{i=1}^{n} x_i`, the total number of successes.
+Taking the natural logarithm (which turns products into sums and is
+monotonically increasing, so it does not change where the maximum occurs):
+
+.. math::
+
+   \ell(p) = \ln L(p) = s \ln p + (n - s) \ln(1 - p).
+
+Notice that the entire dataset collapses into a single number :math:`s` --- the
+**sufficient statistic**.  Whether you observed 70 ones and 30 zeros, or the
+same 70 ones in a completely different order, the log-likelihood is identical.
+This is a hallmark of exponential-family distributions.
 
 .. code-block:: python
 
@@ -118,14 +139,27 @@ statistic.
 Score function
 --------------
 
-Differentiating with respect to :math:`p`:
+The **score function** is the derivative of the log-likelihood with respect to
+the parameter.  It tells us the slope of the log-likelihood curve: when the
+score is positive, increasing :math:`p` would increase the log-likelihood;
+when negative, we should decrease :math:`p`; and at the maximum, the score is
+exactly zero.
+
+Differentiating :math:`\ell(p) = s \ln p + (n - s) \ln(1 - p)` term by term
+using the chain rule:
 
 .. math::
 
-   S(p) = \frac{d\ell}{dp} = \frac{s}{p} - \frac{n-s}{1-p}.
+   S(p) = \frac{d\ell}{dp}
+        = \frac{d}{dp}\bigl[s \ln p\bigr]
+          + \frac{d}{dp}\bigl[(n-s) \ln(1-p)\bigr]
+        = \frac{s}{p} - \frac{n-s}{1-p}.
 
-The score balances two competing pulls: the successes push :math:`p` upward, and
-the failures push it downward.
+The first term :math:`s/p` represents the "pull" of the observed successes ---
+it is always positive and pushes the estimate upward.  The second term
+:math:`-(n-s)/(1-p)` represents the "pull" of the observed failures --- it is
+always negative and pushes the estimate downward.  At the MLE, these two
+forces are in perfect balance.
 
 .. code-block:: python
 
@@ -141,13 +175,28 @@ the failures push it downward.
 Fisher information
 ------------------
 
-The Fisher information for a single observation is
+The **Fisher information** measures how much information a single observation
+carries about the parameter :math:`p`.  It is defined as the negative expected
+value of the second derivative of the log-likelihood (the expected curvature
+of the log-likelihood curve).
+
+For a single Bernoulli observation, the log-likelihood is
+:math:`\ell_1(p) = x \ln p + (1-x)\ln(1-p)`, so the second derivative is:
 
 .. math::
 
-   \mathcal{I}(p) = \frac{1}{p(1-p)}.
+   \frac{d^2\ell_1}{dp^2} = -\frac{x}{p^2} - \frac{1-x}{(1-p)^2}.
 
-For :math:`n` observations the total information is
+Taking the expected value (using :math:`E[X] = p`):
+
+.. math::
+
+   \mathcal{I}(p) = -E\!\left[\frac{d^2\ell_1}{dp^2}\right]
+   = \frac{p}{p^2} + \frac{1-p}{(1-p)^2}
+   = \frac{1}{p} + \frac{1}{1-p}
+   = \frac{1}{p(1-p)}.
+
+For :math:`n` independent observations the total information simply scales:
 :math:`n\,\mathcal{I}(p) = \dfrac{n}{p(1-p)}`.
 
 .. admonition:: Intuition
@@ -161,14 +210,35 @@ For :math:`n` observations the total information is
 MLE and inference
 ------------------
 
-Setting the score to zero gives
+To find the maximum likelihood estimate, we set the score to zero and solve:
+
+.. math::
+
+   \frac{s}{p} - \frac{n-s}{1-p} = 0.
+
+Cross-multiplying: :math:`s(1-p) = (n-s)p`, which gives :math:`s - sp = np - sp`,
+so :math:`s = np`, and therefore:
 
 .. math::
 
    \hat{p}_{\text{MLE}} = \frac{s}{n} = \bar{x}.
 
-The standard error is :math:`\text{SE} = 1/\sqrt{n\,\mathcal{I}(\hat{p})}
-= \sqrt{\hat{p}(1-\hat{p})/n}`.
+The MLE is simply the sample proportion --- exactly the estimator your
+intuition would suggest.  This is reassuring: the formal machinery of
+likelihood confirms the common-sense answer.
+
+The **standard error** measures how much :math:`\hat{p}` would vary across
+repeated samples.  It comes from the Fisher information via
+:math:`\text{SE} = 1/\sqrt{n\,\mathcal{I}(\hat{p})}`:
+
+.. math::
+
+   \text{SE} = \frac{1}{\sqrt{n/({\hat{p}(1-\hat{p})})}}
+             = \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}.
+
+This formula tells us that uncertainty shrinks with more data (:math:`\sqrt{n}`
+in the denominator) and is largest when :math:`\hat{p} = 0.5` (maximum
+uncertainty about the outcome).
 
 .. code-block:: python
 
@@ -217,12 +287,20 @@ count successes within each patient, then combine across patients.
 PMF
 ---
 
-Let :math:`X \sim \text{Binomial}(m, p)` where :math:`m` is known and
-:math:`p \in (0,1)`:
+Let :math:`X \sim \text{Binomial}(m, p)` where :math:`m` is the (known) number
+of trials and :math:`p \in (0,1)` is the probability of success on each trial:
 
 .. math::
 
    f(x \mid p) = \binom{m}{x} p^x (1-p)^{m-x}, \qquad x = 0, 1, \dots, m.
+
+Reading this formula piece by piece: :math:`p^x` is the probability that the
+:math:`x` successes all happened, :math:`(1-p)^{m-x}` is the probability that
+the remaining :math:`m-x` trials were all failures, and
+:math:`\binom{m}{x} = \frac{m!}{x!(m-x)!}` counts the number of ways to
+choose *which* :math:`x` of the :math:`m` trials are the successes.  The
+product of these three terms gives the total probability of getting exactly
+:math:`x` successes in any order.
 
 .. code-block:: python
 
@@ -252,12 +330,24 @@ Moments: :math:`E[X] = mp` and :math:`\text{Var}(X) = mp(1-p)`.
 Log-likelihood
 --------------
 
-For :math:`n` independent observations, let :math:`S = \sum_{i=1}^{n} x_i`.
-The parameter-dependent part of the log-likelihood is
+For :math:`n` independent observations :math:`x_1, \dots, x_n`, each drawn
+from :math:`\text{Binomial}(m, p)`, the joint likelihood is the product of
+the individual PMFs.  The binomial coefficients :math:`\binom{m}{x_i}` do not
+depend on :math:`p`, so they are constant for the purpose of maximization.
+Collecting the powers of :math:`p` and :math:`(1-p)` as we did for the
+Bernoulli, and letting :math:`S = \sum_{i=1}^{n} x_i` (the total number of
+successes across all patients), the parameter-dependent part of the
+log-likelihood is
 
 .. math::
 
    \ell(p) \propto S \ln p + (nm - S)\ln(1-p).
+
+The :math:`\propto` symbol means "equal up to an additive constant that does
+not depend on :math:`p`."  Notice this has *exactly* the same form as the
+Bernoulli log-likelihood, but with :math:`s \to S` and :math:`n \to nm`.
+This makes sense: :math:`n` patients each with :math:`m` sessions gives
+:math:`nm` total Bernoulli trials, of which :math:`S` were successes.
 
 .. code-block:: python
 
@@ -280,12 +370,16 @@ The parameter-dependent part of the log-likelihood is
 Score function
 --------------
 
+Differentiating the log-likelihood with respect to :math:`p` (exactly the
+same differentiation we performed for the Bernoulli):
+
 .. math::
 
-   S(p) = \frac{S}{p} - \frac{nm - S}{1-p}.
+   S(p) = \frac{d\ell}{dp} = \frac{S}{p} - \frac{nm - S}{1-p}.
 
 This has exactly the same form as the Bernoulli score with
-:math:`s \to S` and :math:`n \to nm`.
+:math:`s \to S` and :math:`n \to nm` --- because the Binomial *is*
+a collection of Bernoulli trials.
 
 .. code-block:: python
 
@@ -297,20 +391,30 @@ This has exactly the same form as the Bernoulli score with
 Fisher information
 ------------------
 
-For a single :math:`\text{Binomial}(m,p)` observation:
+Since each Binomial observation is the sum of :math:`m` independent
+Bernoulli trials, its Fisher information is simply :math:`m` times the
+Bernoulli information:
 
 .. math::
 
    \mathcal{I}(p) = \frac{m}{p(1-p)}.
 
+More trials per observation means more information per observation.
 For :math:`n` observations: :math:`n\mathcal{I}(p) = \dfrac{nm}{p(1-p)}`.
 
 MLE and inference
 ------------------
 
+Setting the score to zero and solving (the same algebra as for the Bernoulli,
+with :math:`nm` in place of :math:`n`):
+
 .. math::
 
    \hat{p} = \frac{S}{nm} = \frac{\bar{x}}{m}.
+
+The MLE is the total number of successes divided by the total number of
+trials.  Equivalently, it is the average count :math:`\bar{x}` divided by
+the number of trials per observation :math:`m`.
 
 .. code-block:: python
 
@@ -364,6 +468,14 @@ Let :math:`X \sim \text{Poisson}(\lambda)` with :math:`\lambda > 0`:
    f(x \mid \lambda) = \frac{\lambda^x e^{-\lambda}}{x!},
    \qquad x = 0, 1, 2, \dots
 
+Reading this formula: :math:`\lambda^x` grows with :math:`x` --- more events
+become more likely as the rate increases.  The :math:`e^{-\lambda}` factor
+ensures probabilities sum to one (it comes from the Taylor series
+:math:`e^{\lambda} = \sum_{x=0}^{\infty} \lambda^x / x!`).  The :math:`x!`
+in the denominator accounts for the fact that the order in which events arrive
+does not matter.  The single parameter :math:`\lambda` controls both where
+the distribution is centred and how spread out it is.
+
 .. code-block:: python
 
    # Poisson PMF: compute P(X=k) for several k
@@ -398,13 +510,21 @@ The mean equals the variance --- this is the Poisson's signature.
 Log-likelihood
 --------------
 
-For :math:`n` i.i.d. observations:
+For :math:`n` i.i.d. observations, the joint likelihood is the product
+:math:`L(\lambda) = \prod_{i=1}^{n} \frac{\lambda^{x_i} e^{-\lambda}}{x_i!}`.
+Taking the logarithm and separating terms that depend on :math:`\lambda`
+from those that don't:
 
 .. math::
 
    \ell(\lambda)
      = \left(\sum_{i=1}^{n} x_i\right)\ln\lambda - n\lambda
        - \underbrace{\sum_{i=1}^{n}\ln(x_i!)}_{\text{constant in }\lambda}.
+
+The first term comes from :math:`\ln(\lambda^{x_i}) = x_i \ln\lambda` summed
+over all observations.  The second term comes from the :math:`n` factors of
+:math:`e^{-\lambda}`, each contributing :math:`-\lambda`.  The last term
+involves only the data and disappears when we differentiate.
 
 .. code-block:: python
 
@@ -427,9 +547,17 @@ For :math:`n` i.i.d. observations:
 Score function
 --------------
 
+Differentiating with respect to :math:`\lambda` (the :math:`x_i!` term
+vanishes since it does not depend on :math:`\lambda`):
+
 .. math::
 
-   S(\lambda) = \frac{\sum x_i}{\lambda} - n.
+   S(\lambda) = \frac{d\ell}{d\lambda}
+   = \frac{\sum x_i}{\lambda} - n.
+
+The first term is a "pull upward" proportional to the total count; the second
+is a constant "pull downward."  When :math:`\lambda` equals the sample mean,
+these forces balance.
 
 .. code-block:: python
 
@@ -441,8 +569,18 @@ Score function
 Fisher information
 ------------------
 
-For one observation: :math:`\mathcal{I}(\lambda) = 1/\lambda`.
-For :math:`n` observations: :math:`n/\lambda`.
+The second derivative of the single-observation log-likelihood
+:math:`\ell_1(\lambda) = x\ln\lambda - \lambda` is
+:math:`d^2\ell_1/d\lambda^2 = -x/\lambda^2`.  Taking the negative expected
+value (with :math:`E[X] = \lambda`):
+
+.. math::
+
+   \mathcal{I}(\lambda) = -E\!\left[-\frac{X}{\lambda^2}\right]
+   = \frac{E[X]}{\lambda^2} = \frac{\lambda}{\lambda^2}
+   = \frac{1}{\lambda}.
+
+For :math:`n` observations: :math:`n\mathcal{I}(\lambda) = n/\lambda`.
 
 .. admonition:: Intuition
 
@@ -453,10 +591,23 @@ For :math:`n` observations: :math:`n/\lambda`.
 MLE and inference
 ------------------
 
+Setting the score to zero: :math:`\sum x_i / \lambda = n`, so
+
 .. math::
 
-   \hat{\lambda} = \bar{x}, \qquad
-   \text{SE} = \sqrt{\hat{\lambda}/n}.
+   \hat{\lambda} = \frac{\sum x_i}{n} = \bar{x}.
+
+The MLE for the Poisson rate is simply the sample mean --- again, the
+intuitive estimator.  The standard error follows from
+:math:`\text{SE} = 1/\sqrt{n\mathcal{I}(\hat\lambda)}`:
+
+.. math::
+
+   \text{SE} = \sqrt{\frac{\hat{\lambda}}{n}}.
+
+Because the Poisson has mean equal to variance (:math:`E[X] = \text{Var}(X) = \lambda`),
+the SE of :math:`\hat{\lambda}` is just the usual "standard deviation divided by
+:math:`\sqrt{n}`" formula.
 
 .. code-block:: python
 
@@ -500,12 +651,19 @@ PMF
 ---
 
 Let :math:`X` be the number of failures before the :math:`r`-th success,
-:math:`r > 0` known, :math:`p \in (0,1)`:
+where :math:`r > 0` is known and :math:`p \in (0,1)` is the success
+probability:
 
 .. math::
 
    f(x \mid r, p) = \binom{x + r - 1}{x} p^r (1-p)^x,
    \qquad x = 0, 1, 2, \dots
+
+Here :math:`p^r` is the probability of the :math:`r` required successes,
+:math:`(1-p)^x` is the probability of :math:`x` failures, and the
+binomial coefficient :math:`\binom{x + r - 1}{x}` counts the number of
+distinct orderings of :math:`x` failures and :math:`r - 1` non-final
+successes (the last trial must be a success, hence :math:`r - 1`).
 
 .. code-block:: python
 
@@ -539,11 +697,18 @@ built-in overdispersion.
 Log-likelihood
 --------------
 
-For :math:`n` i.i.d. observations with :math:`r` known:
+For :math:`n` i.i.d. observations with :math:`r` known, we multiply the PMFs
+and take the log.  The binomial coefficients do not depend on :math:`p` and
+become part of the constant.  Collecting the powers of :math:`p` and
+:math:`(1-p)`:
 
 .. math::
 
    \ell(p) = \text{const} + nr\ln p + \left(\sum_{i=1}^{n} x_i\right)\ln(1-p).
+
+This has a familiar structure: :math:`\ln p` multiplied by "total successes"
+(:math:`nr`, since :math:`r` successes per observation) and :math:`\ln(1-p)`
+multiplied by "total failures" (:math:`\sum x_i`).
 
 .. code-block:: python
 
@@ -568,9 +733,14 @@ For :math:`n` i.i.d. observations with :math:`r` known:
 Score function
 --------------
 
+Differentiating the log-likelihood:
+
 .. math::
 
-   S(p) = \frac{nr}{p} - \frac{\sum x_i}{1-p}.
+   S(p) = \frac{d\ell}{dp} = \frac{nr}{p} - \frac{\sum x_i}{1-p}.
+
+Again the same pattern: a term pulling :math:`p` up (from successes) and a
+term pulling it down (from failures).
 
 .. code-block:: python
 
@@ -582,18 +752,31 @@ Score function
 Fisher information
 ------------------
 
-For one observation:
+Taking the second derivative of the single-observation log-likelihood
+:math:`\ell_1 = r\ln p + x\ln(1-p)` gives
+:math:`d^2\ell_1/dp^2 = -r/p^2 - x/(1-p)^2`.  Taking the negative
+expectation with :math:`E[X] = r(1-p)/p`:
 
 .. math::
 
-   \mathcal{I}(p) = \frac{r}{p^2(1-p)}.
+   \mathcal{I}(p) = \frac{r}{p^2} + \frac{r(1-p)/p}{(1-p)^2}
+   = \frac{r}{p^2} + \frac{r}{p(1-p)}
+   = \frac{r}{p^2(1-p)}.
 
 MLE and inference
 ------------------
 
+Setting the score to zero: :math:`nr/p = \sum x_i/(1-p)`, which gives
+:math:`nr(1-p) = p\sum x_i`.  Since :math:`\sum x_i = n\bar{x}`, we get
+:math:`r(1-p) = p\bar{x}`, so :math:`r = p(r + \bar{x})`, and therefore:
+
 .. math::
 
    \hat{p} = \frac{r}{r + \bar{x}}.
+
+This formula makes intuitive sense: if the average number of failures
+:math:`\bar{x}` is large relative to :math:`r`, then :math:`p` must be
+small (each trial rarely succeeds).
 
 When :math:`r` is also unknown, no closed-form MLE exists and numerical
 methods (e.g., Newton--Raphson) are needed.
@@ -650,6 +833,12 @@ We use the "number of failures before the first success" convention:
 
    f(x \mid p) = (1-p)^x \, p, \qquad x = 0, 1, 2, \dots
 
+The logic is straightforward: to see :math:`x` failures followed by a success,
+you need :math:`x` consecutive failures (each with probability :math:`1-p`)
+and then one success (probability :math:`p`).  There is no combinatorial
+factor because the order is fixed --- all failures come first, then the
+success.
+
 .. code-block:: python
 
    # Geometric PMF: compute P(X=k) for several k
@@ -679,9 +868,15 @@ Moments: :math:`E[X] = (1-p)/p` and :math:`\text{Var}(X) = (1-p)/p^2`.
 Log-likelihood
 --------------
 
+The likelihood is :math:`L(p) = \prod_i (1-p)^{x_i} p = p^n (1-p)^{\sum x_i}`.
+Taking the log:
+
 .. math::
 
    \ell(p) = n\ln p + \left(\sum_{i=1}^{n} x_i\right)\ln(1-p).
+
+This is the Negative Binomial log-likelihood with :math:`r = 1`: one "success"
+per observation, so the total number of successes is just :math:`n`.
 
 .. code-block:: python
 
@@ -705,9 +900,13 @@ Log-likelihood
 Score function
 --------------
 
+Differentiating:
+
 .. math::
 
    S(p) = \frac{n}{p} - \frac{\sum x_i}{1-p}.
+
+This is the Negative Binomial score with :math:`r = 1`.
 
 .. code-block:: python
 
@@ -719,7 +918,7 @@ Score function
 Fisher information
 ------------------
 
-For one observation:
+The Negative Binomial Fisher information with :math:`r = 1`:
 
 .. math::
 
@@ -728,9 +927,16 @@ For one observation:
 MLE and inference
 ------------------
 
+Setting the score to zero gives :math:`n/p = \sum x_i/(1-p)`, so
+:math:`n(1-p) = p\sum x_i = np\bar{x}`, hence :math:`1 - p = p\bar{x}`,
+and therefore :math:`1 = p(1 + \bar{x})`:
+
 .. math::
 
    \hat{p} = \frac{1}{1 + \bar{x}}.
+
+If you observe many failures on average before each success (large
+:math:`\bar{x}`), the estimated success probability is small, as expected.
 
 .. code-block:: python
 
@@ -781,6 +987,15 @@ PMF
    f(x \mid K) = \frac{\binom{K}{x}\binom{N-K}{n-x}}{\binom{N}{n}},
    \qquad \max(0, n+K-N) \le x \le \min(n, K).
 
+This formula counts favourable outcomes over total outcomes.  The numerator
+says: choose :math:`x` tagged fish from the :math:`K` tagged ones
+(:math:`\binom{K}{x}` ways), and choose the remaining :math:`n - x` fish
+from the :math:`N - K` untagged ones (:math:`\binom{N-K}{n-x}` ways).
+The denominator :math:`\binom{N}{n}` is the total number of ways to draw
+:math:`n` fish from the lake.  Unlike the Binomial, this distribution does
+*not* assume independence between draws --- each fish you pull out changes
+the composition of the remaining population.
+
 .. code-block:: python
 
    # Hypergeometric PMF: compute P(X=k) for several k
@@ -814,12 +1029,20 @@ Moments: :math:`E[X] = nK/N` and
 MLE
 ---
 
-Because :math:`K` is an integer parameter, we maximise over the integer
-lattice.  The MLE satisfies
+Because :math:`K` is an integer parameter (a count of tagged fish), we cannot
+use calculus in the usual way.  Instead we maximise the PMF over the integer
+lattice :math:`K \in \{0, 1, \dots, N\}`.  It can be shown that the PMF
+ratio :math:`f(x \mid K) / f(x \mid K-1)` is greater than 1 when
+:math:`K < (N+1)x/n` and less than 1 when :math:`K > (N+1)x/n`, so the
+peak occurs near the "break-even" point:
 
 .. math::
 
    \hat{K} = \left\lfloor \frac{(N+1)\,x}{n} \right\rfloor.
+
+This formula is the discrete version of the "proportion times population"
+intuition: if :math:`x` out of :math:`n` sampled fish are tagged, the
+population should have roughly that same proportion tagged.
 
 .. code-block:: python
 
@@ -892,6 +1115,13 @@ and :math:`\mathbf{p} = (p_1, \dots, p_k)` with :math:`\sum_j p_j = 1`:
    f(\mathbf{x} \mid \mathbf{p})
      = \frac{m!}{x_1!\cdots x_k!}\,p_1^{x_1}\cdots p_k^{x_k}.
 
+This generalises the Binomial in a natural way.  The product
+:math:`p_1^{x_1}\cdots p_k^{x_k}` gives the probability of one specific
+sequence of category assignments.  The multinomial coefficient
+:math:`\frac{m!}{x_1!\cdots x_k!}` counts how many distinct orderings
+produce the same count vector :math:`\mathbf{x}` --- just as
+:math:`\binom{m}{x}` did for two categories.
+
 .. code-block:: python
 
    # Multinomial PMF: compute P(X = x) for a specific observation
@@ -929,22 +1159,33 @@ and :math:`\mathbf{p} = (p_1, \dots, p_k)` with :math:`\sum_j p_j = 1`:
 Log-likelihood
 --------------
 
-For :math:`n` independent observations, define :math:`S_j = \sum_{i=1}^{n} x_j^{(i)}`:
+For :math:`n` independent observations, define :math:`S_j = \sum_{i=1}^{n} x_j^{(i)}`
+(the total count for category :math:`j` across all observations).  The
+multinomial coefficients are constant with respect to :math:`\mathbf{p}`, so:
 
 .. math::
 
    \ell(\mathbf{p}) = \text{const} + \sum_{j=1}^{k} S_j \ln p_j.
 
+Each category contributes independently to the log-likelihood, weighted by
+how many times it was observed.
+
 MLE via Lagrange multipliers
 -----------------------------
 
-Subject to :math:`\sum_j p_j = 1`:
+We want to maximize :math:`\ell(\mathbf{p})` subject to the constraint
+:math:`\sum_j p_j = 1`.  Using a Lagrange multiplier :math:`\mu`, we set
+:math:`\partial/\partial p_j [S_j \ln p_j - \mu p_j] = 0`, giving
+:math:`S_j/p_j = \mu` for all :math:`j`.  This means
+:math:`p_j \propto S_j`.  Applying the constraint :math:`\sum p_j = 1`
+forces :math:`\mu = \sum S_j = nm`, so:
 
 .. math::
 
    \hat{p}_j = \frac{S_j}{nm}.
 
-The MLE for each category probability is the observed relative frequency.
+The MLE for each category probability is simply the observed relative
+frequency --- the fraction of all votes that went to each candidate.
 
 .. code-block:: python
 
@@ -974,21 +1215,33 @@ Score function
 --------------
 
 The score with respect to :math:`p_j` (before imposing the constraint) is
+simply the derivative of :math:`S_j \ln p_j`:
 
 .. math::
 
    S_j(p_j) = \frac{S_j}{p_j}.
 
+This is always positive, reflecting the fact that the unconstrained
+maximizer would send each :math:`p_j \to \infty`.  It is only the
+constraint :math:`\sum p_j = 1` that forces the solution to a finite value.
+
 Fisher information
 ------------------
 
-The Fisher information matrix for a single multinomial observation
-(with :math:`p_k = 1 - \sum_{j<k} p_j` eliminated) has entries
+Because of the constraint :math:`\sum p_j = 1`, we can only freely vary
+:math:`k - 1` of the :math:`k` probabilities (the last one is determined).
+The Fisher information matrix for a single multinomial observation, after
+eliminating :math:`p_k = 1 - \sum_{j<k} p_j`, has entries:
 
 .. math::
 
    \mathcal{I}_{jl} = \frac{m\,\delta_{jl}}{p_j} + \frac{m}{p_k},
    \qquad j, l = 1, \dots, k-1.
+
+The diagonal term :math:`m/p_j` comes from the curvature of
+:math:`\ln p_j`, and the :math:`m/p_k` term arises because changing any
+:math:`p_j` implicitly changes :math:`p_k`.  The off-diagonal entries are
+all equal to :math:`m/p_k`, reflecting the coupling through the constraint.
 
 .. code-block:: python
 
@@ -1037,6 +1290,14 @@ PMF
      (1-\pi)\,\dfrac{\lambda^x e^{-\lambda}}{x!}, & x = 1, 2, \dots
    \end{cases}
 
+This is a **mixture model**.  With probability :math:`\pi`, the observation
+is a "structural zero" (it was never going to produce any events).  With
+probability :math:`1 - \pi`, it comes from a standard Poisson process.
+The :math:`x = 0` case has two sources: either the observation is a structural
+zero (probability :math:`\pi`), or it came from the Poisson component but
+happened to produce zero events (probability :math:`(1-\pi)e^{-\lambda}`).
+For :math:`x \geq 1`, only the Poisson component can produce positive counts.
+
 .. code-block:: python
 
    # ZIP PMF: compute P(X=k) and compare to plain Poisson
@@ -1084,7 +1345,10 @@ Log-likelihood
 --------------
 
 Partition the data into zeros :math:`Z` (size :math:`n_0`) and positives
-:math:`P` (size :math:`n_+`):
+:math:`P` (size :math:`n_+`).  The zero observations each contribute
+:math:`\ln[\pi + (1-\pi)e^{-\lambda}]` to the log-likelihood, while the
+positive observations each contribute
+:math:`\ln[(1-\pi) \lambda^{x_i} e^{-\lambda}/x_i!]`.  Collecting terms:
 
 .. math::
 
@@ -1095,15 +1359,26 @@ Partition the data into zeros :math:`Z` (size :math:`n_0`) and positives
        - n_+ \lambda
        - \sum_{i \in P}\ln(x_i!).
 
+The first term is what makes this problem hard: it involves a logarithm of
+a *sum*, which does not simplify nicely.  This is why no closed-form MLE
+exists and we need the EM algorithm.
+
 Score functions
 ---------------
 
-Let :math:`A = \pi + (1-\pi)e^{-\lambda}`.
+Let :math:`A = \pi + (1-\pi)e^{-\lambda}` denote the probability of
+observing a zero.  Differentiating :math:`\ell` with respect to each
+parameter:
 
 .. math::
 
    \frac{\partial\ell}{\partial\pi}
      = \frac{n_0(1 - e^{-\lambda})}{A} - \frac{n_+}{1-\pi}.
+
+The first term asks: "given the observed zeros, how much would increasing
+the structural-zero probability :math:`\pi` help explain them?"  The second
+term is the cost: increasing :math:`\pi` makes it harder to explain the
+positive observations.
 
 .. math::
 
@@ -1111,24 +1386,43 @@ Let :math:`A = \pi + (1-\pi)e^{-\lambda}`.
      = -\frac{n_0(1-\pi)e^{-\lambda}}{A}
        + \frac{\sum_{i \in P} x_i}{\lambda} - n_+.
 
+The first term accounts for zeros that came from the Poisson component
+(increasing :math:`\lambda` makes Poisson zeros less likely).  The remaining
+terms are the standard Poisson score applied to the positive observations.
+
 MLE via EM algorithm
 ---------------------
 
-No closed-form solution exists. The EM algorithm treats each zero as possibly
-structural or Poisson:
+No closed-form solution exists because the :math:`\log(\text{sum})` term
+in the log-likelihood cannot be separated.  The EM (Expectation-Maximization)
+algorithm sidesteps this by introducing a **latent variable**: for each
+zero observation, we pretend we know whether it was a structural zero or
+a Poisson zero, then alternate between two steps.
 
-**E-step.** Posterior probability that a zero is structural:
+**E-step ("guess the hidden labels").** Given current estimates
+:math:`\pi^{(t)}` and :math:`\lambda^{(t)}`, compute the posterior
+probability that each zero is structural (using Bayes' theorem):
 
 .. math::
 
    w^{(t)} = \frac{\pi^{(t)}}{\pi^{(t)} + (1 - \pi^{(t)})e^{-\lambda^{(t)}}}.
 
-**M-step.** Update:
+This is just Bayes' rule: prior probability of structural zero
+(:math:`\pi`) divided by total probability of observing zero (:math:`A`).
+
+**M-step ("re-estimate parameters as if the labels were known").**
+Treating :math:`w^{(t)}` as the fraction of zeros that are structural:
 
 .. math::
 
    \pi^{(t+1)} &= \frac{n_0\, w^{(t)}}{n}, \\[4pt]
    \lambda^{(t+1)} &= \frac{\sum_{i \in P} x_i}{n(1 - \pi^{(t+1)})}.
+
+The first update says: the new :math:`\pi` is the expected number of
+structural zeros divided by :math:`n`.  The second says: the Poisson rate
+is the total count from positive observations divided by the expected number
+of Poisson-component observations.  These two steps are iterated until
+convergence.
 
 .. code-block:: python
 

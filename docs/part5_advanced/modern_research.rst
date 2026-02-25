@@ -215,6 +215,13 @@ computation graph, then propagates *adjoint* values backward:
    \bar{v}_i = \frac{\partial f}{\partial v_i}
    = \sum_{j \,:\, v_i \to v_j} \bar{v}_j \,\frac{\partial v_j}{\partial v_i}.
 
+Reading this formula: :math:`\bar{v}_i` is the sensitivity of the final output
+:math:`f` to the intermediate value :math:`v_i`.  To compute it, we look at
+every node :math:`v_j` that directly depends on :math:`v_i` in the computation
+graph, and sum up how changes in :math:`v_i` propagate through each of those
+paths.  This is just the multi-variable chain rule, applied systematically
+backward through the graph.
+
 One reverse pass computes the full gradient :math:`\nabla_\theta f` regardless
 of the dimension :math:`p`.  The cost is :math:`O(1)` reverse passes (plus
 storage for the computation graph).
@@ -516,7 +523,13 @@ Examples include MADE, PixelCNN, and WaveNet.  The log-likelihood is:
    \log p(\mathbf{x})
    = \sum_{d=1}^D \log p(x_d \mid x_{<d}; \mathbf{w}),
 
-which is tractable and can be optimized directly by gradient ascent.
+In plain English: the log-probability of the whole data vector decomposes into
+a sum of log-probabilities, each asking "given all the previous dimensions,
+how likely is this next one?"  A neural network learns each of these
+conditional distributions.  Because the result is a simple sum of
+log-probabilities, the total log-likelihood is tractable --- we can evaluate
+it and take gradients --- so training is just maximum likelihood estimation
+via gradient ascent.
 
 
 20.3 Simulation-Based Inference (Likelihood-Free)
@@ -683,9 +696,20 @@ Formally, we learn :math:`q_\phi(\theta \mid \mathbf{x})` by minimizing
    \mathcal{L}(\phi)
    = -E_{p(\theta, \mathbf{x})}\!\left[\log q_\phi(\theta \mid \mathbf{x})\right]
 
-over the joint distribution of parameters and data.  This is the *amortized*
-version of variational inference: instead of optimizing separate variational
-parameters for each dataset, a single network handles all datasets.
+over the joint distribution of parameters and data.
+
+Reading this formula: we generate many (parameter, data) pairs from the
+simulator, then train the network to maximize the probability it assigns to the
+true parameter given the data.  This is the same maximum likelihood idea
+applied to the *conditional density estimator* itself.  After training, the
+network has seen so many examples that it has learned the general pattern of
+how data map to posteriors --- so for any new dataset, it can produce an
+approximate posterior in a single forward pass, without running any
+optimization or MCMC.
+
+This is the *amortized* version of variational inference: instead of optimizing
+separate variational parameters for each dataset, a single network handles all
+datasets.
 
 **Amortized inference: an encoder that maps data to posterior parameters.**
 The idea of amortized inference is simple: train a function that takes raw data
@@ -797,6 +821,14 @@ The density of :math:`\mathbf{x}` is:
    = p_Z\!\bigl(f^{-1}(\mathbf{x})\bigr)\;
      \left|\det \frac{\partial f^{-1}}{\partial \mathbf{x}}\right|.
 
+In plain English: to find the density of :math:`\mathbf{x}`, first map it
+back to the base space via :math:`f^{-1}` and evaluate the simple base
+density there.  But that alone is not enough --- the transformation stretches
+and compresses space, so we must account for how much the local volume changes.
+The Jacobian determinant is exactly this volume-change factor.  If the
+transformation expands a region of space, the density must decrease
+proportionally (probability is conserved), and vice versa.
+
 Taking the logarithm:
 
 .. math::
@@ -829,16 +861,25 @@ Computing the full Jacobian determinant is :math:`O(D^3)`.  *Coupling layers*
    \mathbf{z}_B &= \mathbf{x}_B \odot \exp\!\bigl(s(\mathbf{x}_A)\bigr)
                     + t(\mathbf{x}_A),
 
-where :math:`s` and :math:`t` are neural networks.  The Jacobian is
-*triangular*, so:
+where :math:`s` and :math:`t` are neural networks (the "scale" and "translate"
+networks, respectively).
+
+**Why the Jacobian is cheap.**
+Because :math:`\mathbf{z}_A` is simply copied from :math:`\mathbf{x}_A`
+unchanged, and :math:`\mathbf{z}_B` depends on :math:`\mathbf{x}_B` only
+through an element-wise affine transformation (scale by
+:math:`\exp(s(\mathbf{x}_A))` and shift by :math:`t(\mathbf{x}_A)`), the
+Jacobian matrix of the entire transformation is *triangular*.  The determinant
+of a triangular matrix is just the product of its diagonal entries, so:
 
 .. math::
 
    \log\!\left|\det \frac{\partial \mathbf{z}}{\partial \mathbf{x}}\right|
    = \sum_j s_j(\mathbf{x}_A),
 
-which is :math:`O(D)` --- a massive speedup.  Alternating which half is
-transformed ensures all dimensions interact.
+which is :math:`O(D)` --- a massive speedup compared to the :math:`O(D^3)` cost
+of a general determinant.  Alternating which half is transformed ensures all
+dimensions interact.
 
 **Simple affine coupling layer: transforming a Gaussian into a non-Gaussian.**
 Let us implement the coupling layer from scratch and show that it can transform
@@ -1002,6 +1043,16 @@ so:
 which can be estimated by a single-sample Monte Carlo average and
 differentiated through :math:`h` using AD (Section 20.1).
 
+In plain English: the reparameterization trick moves the randomness out of
+the distribution we are differentiating.  Instead of sampling
+:math:`\mathbf{z}` from a distribution that depends on :math:`\psi` (which
+makes the gradient hard to compute), we sample fixed noise
+:math:`\boldsymbol{\epsilon}` from a standard Normal and then *deterministically*
+transform it into :math:`\mathbf{z}` using the function :math:`h`.  Now the
+gradient with respect to :math:`\psi` flows straight through :math:`h` via
+automatic differentiation, giving low-variance gradient estimates that make
+training practical.
+
 Connection to likelihood
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1106,6 +1157,15 @@ The **score function** is the gradient of the log-density with respect to
 where the normalizing constant cancels (it does not depend on
 :math:`\mathbf{x}`).
 
+Note a subtle but important distinction: throughout most of this guide, the
+"score function" referred to the gradient of the log-likelihood with respect to
+the *parameters* :math:`\theta`.  Here, the score is the gradient with respect
+to the *data* :math:`\mathbf{x}`.  This data-space score tells you which
+direction to move a data point to increase its probability under the model ---
+like a vector field pointing "uphill" on the probability landscape.  The key
+advantage is that this score does not depend on the normalizing constant
+:math:`Z(\theta)` at all, since :math:`\nabla_{\mathbf{x}} \log Z(\theta) = 0`.
+
 Hyvarinen (2005) proposed minimizing the *Fisher divergence*:
 
 .. math::
@@ -1116,7 +1176,8 @@ Hyvarinen (2005) proposed minimizing the *Fisher divergence*:
    \right].
 
 This involves the unknown data score, but integration by parts yields an
-equivalent *explicit score matching* objective:
+equivalent *explicit score matching* objective that only requires the model
+score and its derivatives --- not the unknown data score:
 
 .. math::
 
@@ -1125,6 +1186,15 @@ equivalent *explicit score matching* objective:
      \frac{1}{2}\|\mathbf{s}_\theta(\mathbf{x})\|^2
      + \text{tr}\!\bigl(\nabla_{\mathbf{x}} \mathbf{s}_\theta(\mathbf{x})\bigr)
    \right] + \text{const}.
+
+Reading this formula: the first term,
+:math:`\frac{1}{2}\|\mathbf{s}_\theta\|^2`, penalizes model scores that are
+too large (the model thinks the data points should be moved far).  The second
+term, :math:`\text{tr}(\nabla_{\mathbf{x}} \mathbf{s}_\theta)`, is the
+divergence of the score field --- it penalizes the model for having scores that
+converge too sharply (creating overly peaked densities).  Together, these two
+terms replace the need to know the true data score, and minimizing this
+objective makes the model score match the data score.
 
 **Derivation sketch.**
 Expand the squared norm:

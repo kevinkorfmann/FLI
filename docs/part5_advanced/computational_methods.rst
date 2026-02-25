@@ -144,6 +144,11 @@ where the *importance weight* is
 
    w(\theta) = \frac{p(\theta \mid \mathbf{x})}{q(\theta)}.
 
+In plain English: the weight measures how much more (or less) probable
+:math:`\theta` is under the target distribution compared to the proposal.
+Samples from regions where the proposal underrepresents the target get
+upweighted; samples from overrepresented regions get downweighted.
+
 Drawing :math:`\theta^{(s)} \sim q` and computing
 
 .. math::
@@ -152,6 +157,9 @@ Drawing :math:`\theta^{(s)} \sim q` and computing
                   {\sum_{s=1}^S w(\theta^{(s)})}
 
 gives a consistent (self-normalized) importance sampling estimator.  The
+denominator normalizes the weights so they sum to one, which is why this is
+called "self-normalized" --- we do not need to know the normalizing constants
+of :math:`p` or :math:`q`.  The
 quality depends on how well :math:`q` covers the tails of :math:`p`; if :math:`q`
 has lighter tails the variance can be infinite.
 
@@ -248,7 +256,9 @@ Rearranging:
    = \frac{\pi(\theta')\, q(\theta \mid \theta')}
           {\pi(\theta)\, q(\theta' \mid \theta)}.
 
-The Metropolis--Hastings choice sets:
+We need acceptance probabilities :math:`\alpha` that satisfy this ratio and lie
+in :math:`[0, 1]`.  The Metropolis--Hastings choice picks the largest such
+probabilities:
 
 .. math::
 
@@ -256,6 +266,14 @@ The Metropolis--Hastings choice sets:
    = \min\!\left(1,\;
      \frac{\pi(\theta')\, q(\theta \mid \theta')}
           {\pi(\theta)\, q(\theta' \mid \theta)}\right).
+
+Reading this formula: the numerator is the posterior density at the proposed
+point times the probability of proposing a move *back* to where we are; the
+denominator is the same thing in the opposite direction.  If the proposed
+point is "better" (higher posterior density, easy to get back from), the ratio
+exceeds 1 and we always accept.  If it is "worse," we accept with a
+probability equal to the ratio, which gives worse points a fighting chance
+--- this is essential for exploring the full posterior.
 
 One can verify this satisfies the ratio above.  Because :math:`\pi` is the
 posterior, only the ratio :math:`\pi(\theta')/\pi(\theta)` is needed ---
@@ -663,6 +681,12 @@ Hamilton's equations give the dynamics:
                             = -\nabla U(\theta)
                             = \nabla \log p(\theta \mid \mathbf{x}).
 
+In plain English: the first equation says the parameter moves in the direction
+of the momentum (the puck slides).  The second equation says the momentum
+changes according to the gradient of the log-posterior --- the puck accelerates
+downhill toward regions of high posterior density.  Together, these create
+smooth, curving trajectories that efficiently explore the posterior landscape.
+
 These equations are *energy-preserving* and *volume-preserving* (symplectic),
 which is exactly what we need for a valid MCMC proposal.
 
@@ -805,8 +829,15 @@ within-chain variance.  The potential scale reduction factor is:
 
    \hat{R} = \sqrt{\frac{(n-1)/n \cdot W + B/n}{W}},
 
-where :math:`n` is the chain length.  Values close to 1 (typically
-:math:`\hat{R} < 1.01`) indicate convergence.
+where :math:`n` is the chain length.
+
+Reading this formula: the numerator estimates the true variance of the
+posterior using a mixture of within-chain and between-chain information.
+If the chains have converged to the same distribution, the between-chain
+variance :math:`B` will be small relative to :math:`W`, and the ratio
+will be close to 1.  If the chains are still exploring different regions,
+:math:`B` will be large, inflating :math:`\hat{R}`.  Values close to 1
+(typically :math:`\hat{R} < 1.01`) indicate convergence.
 
 Effective sample size (ESS)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -818,8 +849,15 @@ information than :math:`S` independent samples.  The ESS is:
 
    \text{ESS} = \frac{S}{1 + 2\sum_{k=1}^\infty \rho_k},
 
-where :math:`\rho_k` is the autocorrelation at lag :math:`k`.  A low ESS
-means we need more iterations or a better sampler.
+where :math:`\rho_k` is the autocorrelation at lag :math:`k`.
+
+In plain English: if consecutive MCMC samples are highly correlated (the
+chain moves slowly), the denominator grows large, and the ESS shrinks well
+below the nominal number of samples :math:`S`.  For example, if every sample
+is nearly identical to the previous one (:math:`\rho_k \approx 1` for many
+lags), you might have 10,000 samples but an ESS of only 50 --- meaning your
+10,000 correlated draws carry as much information as 50 independent ones.
+A low ESS means we need more iterations or a better sampler.
 
 Let us compute R-hat and ESS from scratch, running multiple chains.
 
@@ -1005,6 +1043,14 @@ The **Evidence Lower BOund** (ELBO) is:
    = E_q[\log p(\mathbf{x}, \theta)] - E_q[\log q(\theta)]
    = E_q[\log p(\mathbf{x} \mid \theta)] - \text{KL}(q \| p(\theta)).
 
+Reading the second form: the ELBO has two competing terms.  The first,
+:math:`E_q[\log p(\mathbf{x} \mid \theta)]`, rewards the approximation
+:math:`q` for placing mass on parameter values that explain the data well
+(good fit).  The second, :math:`\text{KL}(q \| p(\theta))`, penalizes
+:math:`q` for straying too far from the prior (regularization).  Maximizing
+the ELBO finds the best trade-off --- the approximate posterior that fits the
+data as well as possible while remaining close to prior expectations.
+
 Maximizing the ELBO is equivalent to minimizing :math:`\text{KL}(q \| p)`.
 
 Let us implement variational inference for a Beta posterior, optimizing the
@@ -1092,8 +1138,15 @@ The optimal update for :math:`q_j` is:
    = E_{-j}[\log p(\mathbf{x}, \boldsymbol{\theta})] + \text{const},
 
 where :math:`E_{-j}` denotes expectation with respect to all :math:`q_k` for
-:math:`k \neq j`.  This is derived by taking the functional derivative of the
-ELBO with respect to :math:`q_j` and setting it to zero.
+:math:`k \neq j`.
+
+In plain English: to update our approximation for one parameter
+:math:`\theta_j`, we take the log of the full joint distribution, then average
+out all the other parameters using their current approximate distributions.
+The result tells us the optimal shape for :math:`q_j`.  This is analogous to
+fitting one variable at a time while holding the others fixed, which is why
+it is called "coordinate ascent."  This is derived by taking the functional
+derivative of the ELBO with respect to :math:`q_j` and setting it to zero.
 
 CAVI iterates over all components until the ELBO converges.
 

@@ -411,6 +411,16 @@ The optimal :math:`h` for central differences is approximately:
    h_{\text{opt}} \approx \varepsilon_{\text{mach}}^{1/3}\, |\theta|
    \approx 6 \times 10^{-6}\, |\theta|.
 
+**Where does this come from?**  The central-difference error has two parts:
+truncation error :math:`\sim h^2 f'''` (from ignoring higher-order Taylor
+terms) and roundoff error :math:`\sim \varepsilon_{\text{mach}} / h` (from
+subtracting two nearly equal function values).  Truncation error shrinks as
+:math:`h` gets smaller, but roundoff error grows.  Setting the derivative of
+the total error to zero and solving for :math:`h` gives :math:`h_{\text{opt}}
+\sim \varepsilon_{\text{mach}}^{1/3}`.  With :math:`\varepsilon_{\text{mach}}
+\approx 10^{-16}`, this works out to roughly :math:`10^{-5}` to
+:math:`10^{-6}` times :math:`|\theta|`.
+
 **The h trade-off: watching error shrink then grow.**
 The following experiment sweeps :math:`h` from :math:`10^{-1}` down to
 :math:`10^{-15}` and records the error of both forward and central differences.
@@ -468,9 +478,14 @@ Taking the imaginary part:
 
    f'(\theta) = \frac{\text{Im}\!\bigl[f(\theta + ih)\bigr]}{h} + O(h^2).
 
+**Why this is so elegant.**  Ordinary finite differences compute
+:math:`(f(\theta+h) - f(\theta))/h`, which requires *subtracting* two nearby
+real numbers --- the source of all roundoff trouble.  The complex-step method
+extracts the derivative from the *imaginary part* of a single evaluation.
 There is **no subtraction** of nearly equal real numbers, so :math:`h` can be
 chosen extremely small (e.g., :math:`h = 10^{-30}`) without roundoff issues,
-giving effectively exact derivatives.
+giving effectively exact derivatives.  The only requirement is that your
+function implementation supports complex-valued inputs.
 
 **Complex-step derivative: near-exact numerical differentiation.**
 The complex-step method is one of the most elegant tricks in numerical
@@ -573,8 +588,14 @@ Compute :math:`D(h)` and :math:`D(h/2)`:
    = \frac{4\, D(h/2) - D(h)}{3}
    = f'(\theta) + O(h^4).
 
-The leading error term cancels.  This can be iterated (Romberg's method) to
-reach any desired order.  The same idea applies to Hessian approximations.
+**How this works.**  Both :math:`D(h)` and :math:`D(h/2)` have the same
+leading error term :math:`c_1 h^2`, but with different coefficients (because
+:math:`D(h/2)` uses half the step size, its error is :math:`c_1 (h/2)^2 =
+c_1 h^2/4`).  By taking the weighted combination :math:`(4 \cdot D(h/2) -
+D(h))/3`, the :math:`h^2` terms cancel exactly, leaving only the much smaller
+:math:`h^4` error.  The leading error term cancels.  This can be iterated
+(Romberg's method) to reach any desired order.  The same idea applies to
+Hessian approximations.
 
 
 21.6 Condition Numbers
@@ -606,7 +627,13 @@ relative perturbation in the solution bounded by:
    \frac{\|\delta\mathbf{x}\|}{\|\mathbf{x}\|}
    \le \kappa(A)\, \frac{\|\delta\mathbf{b}\|}{\|\mathbf{b}\|}.
 
-If :math:`\kappa(A) = 10^k`, we lose roughly :math:`k` digits of accuracy.
+In plain English: the condition number acts as an "error amplification
+factor."  A 0.01% perturbation in the data, multiplied by a condition number
+of :math:`10^6`, could produce up to a 10,000% error in the answer.  If
+:math:`\kappa(A) = 10^k`, we lose roughly :math:`k` digits of accuracy.
+Since double-precision floating point gives about 16 digits, a condition
+number of :math:`10^{10}` means your answer may have only 6 reliable digits,
+and :math:`10^{16}` means you may have none.
 
 **Well-conditioned vs ill-conditioned Hessians.**
 The condition number of the Hessian determines whether your standard errors
@@ -722,7 +749,15 @@ For a positive definite matrix :math:`\boldsymbol{\Sigma} = \mathbf{L}\mathbf{L}
    :math:`\mathbf{L}^\top\mathbf{x} = \mathbf{y}`.
 2. Compute :math:`\log|\boldsymbol{\Sigma}| = 2\sum_i \log L_{ii}`.
 
-Both are faster and more accurate than forming :math:`\boldsymbol{\Sigma}^{-1}`.
+**Why this is better.**  Step 1 avoids forming the inverse entirely: triangular
+systems can be solved by simple forward/backward substitution in :math:`O(p^2)`
+time, compared to :math:`O(p^3)` for a full inversion.  Step 2 exploits the
+fact that :math:`\det(\mathbf{L}\mathbf{L}^\top) = (\det \mathbf{L})^2 =
+(\prod_i L_{ii})^2`, so the log-determinant reduces to a sum of logarithms of
+the diagonal entries of :math:`\mathbf{L}` --- which is both fast and
+numerically stable (no risk of overflow from computing a huge determinant
+directly).  Both are faster and more accurate than forming
+:math:`\boldsymbol{\Sigma}^{-1}`.
 
 .. code-block:: python
 
@@ -907,6 +942,13 @@ finite-difference approximation:
 .. math::
 
    H\mathbf{v} \approx \frac{\nabla f(\theta + h\mathbf{v}) - \nabla f(\theta)}{h}.
+
+Reading this formula: to compute the product of the Hessian with a vector
+:math:`\mathbf{v}`, we evaluate the gradient at two nearby points (the current
+parameter and a small step in the direction :math:`\mathbf{v}`) and take the
+difference.  This gives us the Hessian--vector product using just two gradient
+evaluations, regardless of the dimension :math:`p` --- we never need to compute
+or store the full :math:`p \times p` Hessian matrix.
 
 Conjugate gradient methods use only Hessian--vector products to solve
 :math:`H\mathbf{d} = -\nabla f`, enabling Newton-like updates in

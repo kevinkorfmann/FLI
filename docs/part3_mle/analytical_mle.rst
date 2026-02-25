@@ -231,12 +231,22 @@ definite---a maximum.
 ---------------------------------
 
 The MLE :math:`\hat\sigma^2` divides by :math:`n`, not :math:`n-1`.
-To see the resulting bias, note that
+To see the resulting bias, we use a standard algebraic identity.
+Adding and subtracting :math:`\mu` inside each squared deviation and
+expanding, one can show that the sum of squared deviations from the
+sample mean decomposes as:
 
 .. math::
 
    \sum_{i=1}^n (X_i - \bar X)^2
    = \sum_{i=1}^n (X_i - \mu)^2 - n(\bar X - \mu)^2.
+
+The first term is the sum of squared deviations from the *true* mean,
+and the second is a correction for the fact that we estimated the mean
+from the data. Because :math:`\bar X` is always closer to the data than
+the true :math:`\mu` is (the sample mean minimises the sum of squared
+deviations), this correction is always positive---the MLE systematically
+underestimates the true variance.
 
 Taking expectations:
 
@@ -425,6 +435,11 @@ The Poisson mass function is
 10.3.1 Log-Likelihood
 -----------------------
 
+To build the log-likelihood, take the log of the mass function for each
+observation and sum. The log of a single Poisson probability is
+:math:`\log f(x_i \mid \lambda) = x_i \log\lambda - \lambda - \log(x_i!)`.
+Summing over all :math:`n` observations and grouping terms:
+
 .. math::
 
    \ell(\lambda)
@@ -433,7 +448,11 @@ The Poisson mass function is
      - \sum_{i=1}^n \log(x_i!).
 
 The last term is a constant with respect to :math:`\lambda` and can be
-ignored during optimisation.
+ignored during optimisation. What remains has the same "competing forces"
+structure as the exponential: :math:`\log\lambda` pulls the estimate up
+(more events make larger rates more plausible), while :math:`-n\lambda`
+pulls it down (larger rates make each observation less likely). The MLE
+balances these two forces.
 
 10.3.2 Score and MLE
 ----------------------
@@ -697,12 +716,24 @@ right skew.
 10.5.1 Log-Likelihood
 -----------------------
 
+Taking the log of the Gamma density and summing over all :math:`n`
+observations gives the log-likelihood. Each observation contributes
+:math:`\alpha\log\beta - \log\Gamma(\alpha) + (\alpha-1)\log x_i - \beta x_i`,
+and summing these up:
+
 .. math::
 
    \ell(\alpha, \beta)
    = n\alpha\log\beta - n\log\Gamma(\alpha)
      + (\alpha - 1)\sum_{i=1}^n \log x_i
      - \beta\sum_{i=1}^n x_i.
+
+Notice the structure: the rate parameter :math:`\beta` enters linearly
+through :math:`-\beta\sum x_i` and logarithmically through
+:math:`n\alpha\log\beta`. This is similar to the exponential case (which
+it generalises when :math:`\alpha=1`). The shape parameter :math:`\alpha`,
+however, is entangled with the Gamma function :math:`\Gamma(\alpha)`,
+which will make it much harder to solve for analytically.
 
 10.5.2 MLE for :math:`\beta` (Conditional on :math:`\alpha`)
 --------------------------------------------------------------
@@ -714,12 +745,20 @@ Differentiating with respect to :math:`\beta`:
    \frac{\partial\ell}{\partial\beta}
    = \frac{n\alpha}{\beta} - \sum_{i=1}^n x_i.
 
-Setting to zero:
+Setting to zero and solving for :math:`\beta`:
 
 .. math::
 
+   \frac{n\alpha}{\beta} = \sum_{i=1}^n x_i
+   \quad\Longrightarrow\quad
    \hat\beta = \frac{n\alpha}{\sum_{i=1}^n x_i}
    = \frac{\alpha}{\bar x}.
+
+In words: the estimated rate equals the shape divided by the sample mean.
+This makes sense because the Gamma distribution has mean
+:math:`\alpha/\beta`, so setting the theoretical mean equal to the
+observed mean :math:`\bar x` gives exactly
+:math:`\hat\beta = \alpha/\bar x`.
 
 For **fixed** :math:`\alpha`, the MLE of :math:`\beta` has a clean
 closed form. This makes the Gamma a "half-analytical" case: one
@@ -746,7 +785,8 @@ Substituting the conditional MLE :math:`\hat\beta = \alpha/\bar x`:
    n\log\frac{\alpha}{\bar x} - n\,\psi(\alpha)
    + \sum_{i=1}^n \log x_i = 0.
 
-Rearranging:
+Rearranging so that terms involving :math:`\alpha` are on the left and
+data-dependent terms are on the right:
 
 .. math::
 
@@ -755,9 +795,21 @@ Rearranging:
 
 The right-hand side is a known constant computed from the data (it
 equals :math:`\log\bar x - \overline{\log x}`, which is always positive
-by Jensen's inequality). The left-hand side,
+by Jensen's inequality). To see why it is positive, recall that
+:math:`\log` is a concave function, so Jensen's inequality tells us that
+the log of the mean is always at least as large as the mean of the logs:
+:math:`\log\bar x \geq \overline{\log x}`, with equality only when all
+observations are identical. The gap :math:`\log\bar x - \overline{\log x}`
+measures how spread out the data are on a log scale---larger gaps
+correspond to more variable data.
+
+The left-hand side,
 :math:`\log\alpha - \psi(\alpha)`, is a monotonically decreasing
 function of :math:`\alpha` that maps :math:`(0, \infty) \to (0, \infty)`.
+Since the left-hand side covers all positive values and is strictly
+decreasing, there is always exactly one solution :math:`\alpha` for any
+positive right-hand side. We just cannot write that solution in terms of
+elementary functions.
 
 **There is no closed-form inverse.** The digamma function is
 transcendental, so :math:`\alpha` must be found numerically---for
@@ -859,6 +911,12 @@ and any context where you need a flexible distribution on :math:`(0,1)`.
 10.6.1 Log-Likelihood
 -----------------------
 
+The log-likelihood comes from taking the log of the Beta density and
+summing over observations. The normalising constant
+:math:`\Gamma(\alpha+\beta)/[\Gamma(\alpha)\Gamma(\beta)]` produces the
+first line, and the kernel :math:`x^{\alpha-1}(1-x)^{\beta-1}` produces
+the second:
+
 .. math::
 
    \ell(\alpha, \beta)
@@ -867,8 +925,20 @@ and any context where you need a flexible distribution on :math:`(0,1)`.
    &\quad + (\alpha-1)\sum_{i=1}^n \log x_i
      + (\beta-1)\sum_{i=1}^n \log(1-x_i).
 
+The sufficient statistics are :math:`\sum \log x_i` and
+:math:`\sum \log(1-x_i)`. Intuitively, :math:`\alpha` controls how much
+probability mass is concentrated near 1 (large :math:`\alpha` makes the
+data cluster toward 1), while :math:`\beta` controls how much is
+concentrated near 0. Both parameters are entangled through the
+:math:`\Gamma(\alpha+\beta)` normalising term, which is why we cannot
+separate the two equations the way we could for the Gamma rate.
+
 10.6.2 Score Equations
 -----------------------
+
+Differentiating the log-likelihood with respect to each parameter and
+using the identity :math:`d\log\Gamma(z)/dz = \psi(z)` (the digamma
+function) gives:
 
 .. math::
 
@@ -879,6 +949,11 @@ and any context where you need a flexible distribution on :math:`(0,1)`.
    &= n\bigl[\psi(\alpha+\beta) - \psi(\beta)\bigr]
       + \sum_{i=1}^n \log(1-x_i) = 0.
 
+The term :math:`\psi(\alpha+\beta)` appears in both equations because
+both parameters share the :math:`\Gamma(\alpha+\beta)` normalising
+factor. This coupling is the source of the difficulty: you cannot solve
+one equation without knowing the solution to the other.
+
 These are two coupled equations involving the digamma function. Unlike
 the Gamma case, neither parameter can be eliminated to yield a
 one-dimensional equation. Both equations are **transcendental** and
@@ -887,8 +962,11 @@ must be solved simultaneously by numerical optimisation.
 10.6.3 Numerical Approaches
 -----------------------------
 
-- **Newton--Raphson.** Compute the :math:`2 \times 2` Hessian using the
-  trigamma function :math:`\psi'` and iterate:
+- **Newton--Raphson.** This is the standard approach: start from an
+  initial guess, then repeatedly improve it by moving in the direction
+  that the score (gradient) and curvature (Hessian) suggest. Specifically,
+  compute the :math:`2 \times 2` Hessian using the trigamma function
+  :math:`\psi'` and iterate:
 
   .. math::
 
@@ -897,7 +975,9 @@ must be solved simultaneously by numerical optimisation.
      \begin{pmatrix}\alpha\\\beta\end{pmatrix}^{(t)}
      - H^{-1}\,\nabla\ell.
 
-  The Hessian is
+  Each iteration, the Hessian :math:`H^{-1}` rescales the gradient
+  :math:`\nabla\ell` so the step size adapts to the curvature of the
+  log-likelihood in each direction. The Hessian is
 
   .. math::
 
@@ -907,6 +987,13 @@ must be solved simultaneously by numerical optimisation.
      \psi'(\alpha+\beta)
        & \psi'(\alpha+\beta)-\psi'(\beta)
      \end{pmatrix}.
+
+  The off-diagonal entries are both :math:`n\psi'(\alpha+\beta)`,
+  reflecting the coupling between :math:`\alpha` and :math:`\beta`
+  through the shared normalising constant. Because the trigamma function
+  :math:`\psi'` is always positive, and the diagonal entries subtract it,
+  this Hessian is negative definite, confirming that the log-likelihood
+  is concave and Newton--Raphson converges reliably.
 
 - **Fixed-point iteration.** Rewrite the score equations as
 
@@ -921,7 +1008,14 @@ must be solved simultaneously by numerical optimisation.
   This converges more slowly than Newton--Raphson but is simpler to
   implement.
 
-- **Method-of-moments initialisation.** A good starting point is
+- **Method-of-moments initialisation.** Numerical methods need a
+  starting point, and a good one speeds convergence dramatically. The
+  idea is to match the sample mean and variance to the theoretical mean
+  and variance of the Beta distribution. The Beta has mean
+  :math:`\mu = \alpha/(\alpha+\beta)` and variance
+  :math:`\sigma^2 = \alpha\beta/[(\alpha+\beta)^2(\alpha+\beta+1)]`.
+  Setting :math:`\mu = \bar x` and :math:`\sigma^2 = s^2` and solving
+  for :math:`\alpha` and :math:`\beta` yields the starting values:
 
   .. math::
 
@@ -931,6 +1025,14 @@ must be solved simultaneously by numerical optimisation.
      \tilde\beta = (1-\bar x)\!\left(
        \frac{\bar x(1-\bar x)}{s^2} - 1
      \right).
+
+  The key quantity :math:`\bar x(1-\bar x)/s^2 - 1` measures how
+  "concentrated" the data are relative to a Bernoulli variable (which
+  has maximum variance :math:`\bar x(1-\bar x)`). When the data are
+  tightly clustered, this ratio is large, producing large
+  :math:`\tilde\alpha` and :math:`\tilde\beta` (a peaked Beta).
+  When the data are spread out, the ratio is small, producing a flatter
+  Beta.
 
 .. code-block:: python
 
@@ -1026,8 +1128,12 @@ with density
 10.7.1 Likelihood
 -------------------
 
-The likelihood is nonzero only if all observations fall in
-:math:`[0, \theta]`:
+The likelihood is the product of densities. Each factor is
+:math:`1/\theta` whenever :math:`x_i` falls in :math:`[0,\theta]`, and
+zero otherwise. For the entire product to be nonzero, *every*
+observation must satisfy :math:`x_i \leq \theta`. This happens
+precisely when :math:`\theta` is at least as large as the biggest
+observation:
 
 .. math::
 
@@ -1036,7 +1142,10 @@ The likelihood is nonzero only if all observations fall in
    = \frac{1}{\theta^n}\,\mathbf{1}(\theta \geq x_{(n)}),
 
 where :math:`x_{(n)} = \max(x_1, \ldots, x_n)` is the largest
-observation.
+observation. The indicator :math:`\mathbf{1}(\theta \geq x_{(n)})`
+encodes the hard constraint: any proposed :math:`\theta` smaller than the
+largest data point gets zero likelihood, because at least one observation
+would lie outside :math:`[0,\theta]`.
 
 10.7.2 Log-Likelihood
 -----------------------
@@ -1096,14 +1205,28 @@ depends on :math:`\theta` (violating regularity condition 2 in
 
    n(\theta - \hat\theta) \;\xrightarrow{d}\; \text{Exp}(1/\theta).
 
+What does this mean in plain terms? For most well-behaved distributions,
+the estimation error shrinks like :math:`1/\sqrt{n}`, so you need four
+times as much data to halve your error. For the Uniform, the error
+shrinks like :math:`1/n`---you only need twice as much data to halve
+your error. The reason is that each new observation has a chance of being
+the new maximum, directly tightening the bound on :math:`\theta`. The
+limiting distribution is exponential rather than normal, reflecting the
+fact that the gap :math:`\theta - X_{(n)}` between the true endpoint
+and the largest observation is driven by a single extreme order
+statistic.
+
 Furthermore, the MLE is biased:
 
 .. math::
 
    E[X_{(n)}] = \frac{n}{n+1}\,\theta,
 
-so :math:`\hat\theta` underestimates :math:`\theta`. The unbiased
-correction is :math:`\frac{n+1}{n}\,x_{(n)}`.
+so :math:`\hat\theta` underestimates :math:`\theta`. This makes
+intuitive sense: the maximum of a finite sample can never exceed
+:math:`\theta`, so on average it must fall below it. The unbiased
+correction is :math:`\frac{n+1}{n}\,x_{(n)}`, which inflates the
+maximum slightly to account for the gap that is almost certainly present.
 
 This faster convergence rate is actually a bonus---the Uniform MLE is
 *super-consistent*, converging faster than any regular MLE. The price we
@@ -1166,8 +1289,13 @@ where :math:`n_j` is the total count in category :math:`j` and
 10.8.2 Constrained Optimisation via Lagrange Multipliers
 ----------------------------------------------------------
 
-We must maximise :math:`\ell` subject to :math:`\sum_j p_j = 1`. Form
-the Lagrangian:
+We must maximise :math:`\ell` subject to :math:`\sum_j p_j = 1`. We
+cannot simply differentiate and set to zero because the probabilities
+are not free to vary independently---they must sum to one. The standard
+technique for optimising with equality constraints is Lagrange
+multipliers: we introduce a new variable :math:`\lambda` (the
+*multiplier*) that penalises deviations from the constraint. Form the
+Lagrangian:
 
 .. math::
 
@@ -1175,7 +1303,8 @@ the Lagrangian:
    = \sum_{j=1}^k n_j\log p_j
      + \lambda\!\left(1 - \sum_{j=1}^k p_j\right).
 
-Differentiate with respect to :math:`p_j`:
+At the optimum, the partial derivative of this combined objective must
+be zero for each :math:`p_j`. Differentiate with respect to :math:`p_j`:
 
 .. math::
 
@@ -1184,6 +1313,9 @@ Differentiate with respect to :math:`p_j`:
    \quad\Longrightarrow\quad
    p_j = \frac{n_j}{\lambda}.
 
+This says that each probability is proportional to its count, with
+:math:`\lambda` acting as the proportionality constant. To find
+:math:`\lambda`, we use the fact that the probabilities must sum to one.
 Now enforce the constraint:
 
 .. math::
@@ -1193,6 +1325,9 @@ Now enforce the constraint:
    \sum_{j=1}^k \frac{n_j}{\lambda} = 1
    \;\Longrightarrow\;
    \lambda = N.
+
+So the Lagrange multiplier :math:`\lambda` turns out to equal :math:`N`,
+the total count across all categories.
 
 Therefore:
 

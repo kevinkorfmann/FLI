@@ -51,10 +51,20 @@ PDF
        \exp\!\left(-\frac{(x-\mu)^2}{2\sigma^2}\right),
    \qquad x \in \mathbb{R}.
 
+Reading this formula: the factor :math:`\frac{1}{\sqrt{2\pi\sigma^2}}` is
+a normalizing constant that ensures the density integrates to 1.  The
+exponential term :math:`\exp(-(x-\mu)^2/(2\sigma^2))` is a *Gaussian bell
+curve* centred at :math:`\mu`.  The larger the deviation :math:`|x - \mu|`,
+the smaller the density.  The parameter :math:`\sigma^2` controls the width:
+large :math:`\sigma^2` gives a wide, flat bell; small :math:`\sigma^2` gives
+a narrow, tall one.
+
 Likelihood
 ----------
 
-For :math:`n` i.i.d. observations :math:`x_1, \dots, x_n`:
+For :math:`n` i.i.d. observations :math:`x_1, \dots, x_n`, the likelihood is
+the product of the individual densities (just as for discrete distributions,
+but now using the PDF rather than the PMF):
 
 .. math::
 
@@ -66,6 +76,12 @@ For :math:`n` i.i.d. observations :math:`x_1, \dots, x_n`:
 
 Log-likelihood
 --------------
+
+Taking the logarithm of the likelihood, each factor contributes three terms:
+:math:`-\frac{1}{2}\ln(2\pi)` from the normalizing constant,
+:math:`-\frac{1}{2}\ln\sigma^2` from the :math:`\sigma` in the denominator,
+and :math:`-(x_i-\mu)^2/(2\sigma^2)` from the exponential.  Summing over
+all :math:`n` observations:
 
 .. math::
 
@@ -80,25 +96,45 @@ maximum---which is exactly what makes the Normal so tractable.
 Score functions
 ---------------
 
-**With respect to** :math:`\mu`:
+The score functions are the partial derivatives of the log-likelihood with
+respect to each parameter.  They tell us how the log-likelihood changes as
+we adjust :math:`\mu` or :math:`\sigma^2`.
+
+**With respect to** :math:`\mu` (differentiating the quadratic term
+:math:`-(x_i - \mu)^2/(2\sigma^2)` and using the chain rule):
 
 .. math::
 
    \frac{\partial\ell}{\partial\mu}
      = \frac{1}{\sigma^2}\sum_{i=1}^{n}(x_i - \mu).
 
+This says: each observation :math:`x_i` exerts a "pull" on :math:`\mu`
+proportional to the residual :math:`x_i - \mu`.  Points above the current
+:math:`\mu` pull it up; points below pull it down.  At the MLE, these pulls
+balance perfectly.
+
 **With respect to** :math:`\sigma^2` (treating :math:`\tau = \sigma^2` as the
-parameter):
+parameter, and differentiating both the :math:`\ln\sigma^2` and the
+:math:`1/\sigma^2` terms):
 
 .. math::
 
    \frac{\partial\ell}{\partial\tau}
      = -\frac{n}{2\tau} + \frac{1}{2\tau^2}\sum_{i=1}^{n}(x_i - \mu)^2.
 
+The first term comes from :math:`-\frac{n}{2}\ln\tau` and penalizes large
+variance (the density spreads out, getting shorter).  The second term rewards
+large variance when the data are spread far from :math:`\mu`.  The MLE
+balances these two effects.
+
 Fisher information
 ------------------
 
-For a single observation the Fisher information matrix is
+The Fisher information matrix is found by taking the negative expectation
+of the second derivatives of the log-likelihood.  For the Normal, the
+second derivative with respect to :math:`\mu` is :math:`-n/\sigma^2`,
+which does not depend on the data, so the expected value is just itself.
+For a single observation:
 
 .. math::
 
@@ -108,9 +144,11 @@ For a single observation the Fisher information matrix is
          0 & 1/(2\sigma^4)
        \end{pmatrix}.
 
-The off-diagonal is zero, reflecting the fact that :math:`\bar{X}` and
-:math:`S^2` are independent statistics --- a property unique to the Normal
-family.
+The off-diagonal is zero, reflecting the remarkable fact that :math:`\bar{X}`
+and :math:`S^2` are independent statistics --- a property unique to the
+Normal family.  The :math:`1/\sigma^2` entry says that each observation
+carries more information about :math:`\mu` when the variance is small
+(data are tightly clustered, so the mean is easier to pin down).
 
 .. admonition:: Why does this matter?
 
@@ -190,8 +228,18 @@ PDF
    f(x \mid \lambda) = \lambda\, e^{-\lambda x},
    \qquad x \ge 0, \quad \lambda > 0.
 
+The factor :math:`\lambda` ensures the density integrates to 1, and the
+exponential decay :math:`e^{-\lambda x}` captures the idea that longer waits
+are less probable.  Higher :math:`\lambda` means events happen more frequently,
+so the density is concentrated near zero (short waiting times).
+
 Likelihood
 ----------
+
+Because the observations are independent, the joint density is the product
+of the individual densities.  The :math:`n` factors of :math:`\lambda`
+combine into :math:`\lambda^n`, and the exponentials multiply via
+:math:`e^a \cdot e^b = e^{a+b}`:
 
 .. math::
 
@@ -201,28 +249,53 @@ Likelihood
 Log-likelihood
 --------------
 
+Taking the logarithm:
+
 .. math::
 
    \ell(\lambda) = n\ln\lambda - \lambda\sum_{i=1}^{n} x_i.
 
+The first term :math:`n\ln\lambda` increases without bound as
+:math:`\lambda \to \infty` (more events per unit time is always "better" at
+explaining having observed events at all).  The second term
+:math:`-\lambda\sum x_i` provides the counterbalancing penalty: a high rate
+makes the observed (long) waiting times unlikely.  The maximum occurs where
+these two effects balance.
+
 Score function
 --------------
 
+Differentiating:
+
 .. math::
 
-   S(\lambda) = \frac{n}{\lambda} - \sum_{i=1}^{n} x_i.
+   S(\lambda) = \frac{d\ell}{d\lambda} = \frac{n}{\lambda} - \sum_{i=1}^{n} x_i.
+
+This has exactly the same "pull up / pull down" structure we have seen
+throughout.  The first term pulls :math:`\lambda` up (the data consist of
+:math:`n` events, each providing evidence for a positive rate).  The second
+term pulls it down (the total waiting time :math:`\sum x_i` limits how large
+the rate can be).
 
 Fisher information
 ------------------
 
+The second derivative of the single-observation log-likelihood
+:math:`\ell_1 = \ln\lambda - \lambda x` is :math:`-1/\lambda^2`, which does
+not depend on the data:
+
 .. math::
 
-   \frac{d^2\ell_1}{d\lambda^2} = -\frac{1}{\lambda^2}
-   \;\Longrightarrow\;
-   \mathcal{I}(\lambda) = \frac{1}{\lambda^2}.
+   \mathcal{I}(\lambda) = -E\!\left[-\frac{1}{\lambda^2}\right]
+   = \frac{1}{\lambda^2}.
+
+Higher rates are estimated more precisely (larger information), because the
+relative precision :math:`\text{SE}/\hat{\lambda} = 1/\sqrt{n}` is constant.
 
 MLE
 ---
+
+Setting the score to zero and solving:
 
 .. math::
 
@@ -285,10 +358,22 @@ With shape :math:`\alpha > 0` and rate :math:`\beta > 0`:
    \qquad x > 0.
 
 Here :math:`\Gamma(\alpha) = \int_0^\infty t^{\alpha-1}e^{-t}\,dt` is the
-Gamma function.
+Gamma function (the continuous generalization of the factorial:
+:math:`\Gamma(n) = (n-1)!` for positive integers).
+
+The term :math:`x^{\alpha-1}` controls the shape near zero: when
+:math:`\alpha > 1`, the density starts at zero and rises to a mode before
+falling; when :math:`\alpha < 1`, it shoots up to infinity at zero (a
+J-shape); when :math:`\alpha = 1` the density starts at :math:`\beta` and
+decays --- the Exponential.  The :math:`e^{-\beta x}` term governs the
+exponential tail decay, with larger :math:`\beta` producing a steeper
+drop-off.
 
 Likelihood
 ----------
+
+Multiplying the :math:`n` individual PDFs and collecting like terms (using
+:math:`\prod x_i^{\alpha-1} = (\prod x_i)^{\alpha-1}`):
 
 .. math::
 
@@ -300,6 +385,8 @@ Likelihood
 Log-likelihood
 --------------
 
+Taking the log of each factor:
+
 .. math::
 
    \ell(\alpha,\beta)
@@ -307,25 +394,36 @@ Log-likelihood
        + (\alpha - 1)\sum_{i=1}^{n}\ln x_i
        - \beta\sum_{i=1}^{n} x_i.
 
+The log-likelihood depends on the data only through two summaries:
+:math:`\sum x_i` (the total) and :math:`\sum \ln x_i` (the sum of logs).
+These are the **sufficient statistics** for the Gamma family.
+
 Score functions
 ---------------
 
-**With respect to** :math:`\beta`:
+**With respect to** :math:`\beta` (differentiating
+:math:`n\alpha\ln\beta - \beta\sum x_i`):
 
 .. math::
 
    \frac{\partial\ell}{\partial\beta}
      = \frac{n\alpha}{\beta} - \sum_{i=1}^{n} x_i.
 
-**With respect to** :math:`\alpha`:
+This has the familiar "pull up versus pull down" structure.
+
+**With respect to** :math:`\alpha` (differentiating
+:math:`n\alpha\ln\beta - n\ln\Gamma(\alpha) + (\alpha-1)\sum\ln x_i`):
 
 .. math::
 
    \frac{\partial\ell}{\partial\alpha}
      = n\ln\beta - n\psi(\alpha) + \sum_{i=1}^{n}\ln x_i,
 
-where :math:`\psi(\alpha) = \Gamma'(\alpha)/\Gamma(\alpha)` is the digamma
-function.
+where :math:`\psi(\alpha) = \Gamma'(\alpha)/\Gamma(\alpha)` is the **digamma
+function** --- the derivative of :math:`\ln\Gamma(\alpha)`.  This function
+appears whenever we differentiate a log-likelihood involving the Gamma
+function, and it has no simple closed-form inverse, which is why the Gamma
+MLE requires numerical methods.
 
 Fisher information
 ------------------
@@ -340,18 +438,27 @@ The Fisher information matrix for a single observation is
          -1/\beta & \alpha/\beta^2
        \end{pmatrix},
 
-where :math:`\psi'(\alpha)` is the trigamma function.
+where :math:`\psi'(\alpha)` is the **trigamma function** (the second
+derivative of :math:`\ln\Gamma`).  The off-diagonal entry :math:`-1/\beta`
+means the parameters are *not* orthogonal: estimating :math:`\alpha` and
+:math:`\beta` jointly creates some correlation between the estimates.
 
 MLE
 ---
 
-From the :math:`\beta` score equation:
+The :math:`\beta` score equation is easy to solve.  Setting it to zero:
 
 .. math::
 
    \hat{\beta} = \frac{n\alpha}{\sum x_i} = \frac{\alpha}{\bar{x}}.
 
-Substituting into the :math:`\alpha` score equation gives
+This says: given the shape :math:`\alpha`, the rate is just
+:math:`\alpha/\bar{x}` --- a natural relationship since
+:math:`E[X] = \alpha/\beta`.
+
+Substituting this expression for :math:`\beta` into the :math:`\alpha` score
+equation eliminates :math:`\beta` and leaves a single equation in
+:math:`\alpha`:
 
 .. math::
 
@@ -359,9 +466,11 @@ Substituting into the :math:`\alpha` score equation gives
      = \ln\bar{x} - \frac{1}{n}\sum_{i=1}^{n}\ln x_i
      = \ln\bar{x} - \overline{\ln x}.
 
-The right-hand side is a fixed quantity computed from the data. The left-hand
-side is a monotone function of :math:`\alpha`, so the equation can be solved
-by Newton's method or by using the approximation
+The right-hand side is a fixed quantity computed from the data (note that by
+Jensen's inequality, :math:`\ln\bar{x} \geq \overline{\ln x}`, so the
+right-hand side is always non-negative). The left-hand side is a monotone
+decreasing function of :math:`\alpha`, so a unique solution exists.  It can be
+found by Newton's method, or by using the rough starting approximation:
 
 .. math::
 
@@ -463,7 +572,16 @@ With shape parameters :math:`\alpha > 0` and :math:`\beta > 0`:
      = \frac{1}{B(\alpha,\beta)}\,x^{\alpha-1}(1-x)^{\beta-1},
    \qquad 0 < x < 1,
 
-where :math:`B(\alpha,\beta) = \Gamma(\alpha)\Gamma(\beta)/\Gamma(\alpha+\beta)`.
+where :math:`B(\alpha,\beta) = \Gamma(\alpha)\Gamma(\beta)/\Gamma(\alpha+\beta)`
+is the Beta function (a normalizing constant).
+
+The structure is reminiscent of the Bernoulli PMF:
+:math:`x^{\alpha-1}` "rewards" values near 1 (when :math:`\alpha > 1`), and
+:math:`(1-x)^{\beta-1}` rewards values near 0 (when :math:`\beta > 1`).
+When :math:`\alpha = \beta`, the density is symmetric around 0.5.  When
+:math:`\alpha > \beta`, the distribution is skewed toward 1; when
+:math:`\alpha < \beta`, toward 0.  The special case
+:math:`\alpha = \beta = 1` is the Uniform on :math:`(0,1)`.
 
 Likelihood
 ----------
@@ -477,6 +595,8 @@ Likelihood
 Log-likelihood
 --------------
 
+Taking the logarithm:
+
 .. math::
 
    \ell(\alpha,\beta)
@@ -484,7 +604,10 @@ Log-likelihood
        + (\alpha-1)\sum_{i=1}^{n}\ln x_i
        + (\beta-1)\sum_{i=1}^{n}\ln(1-x_i).
 
-Expanding :math:`\ln B(\alpha,\beta)`:
+Just as with the Gamma, the data enter only through two sufficient statistics:
+:math:`\sum \ln x_i` and :math:`\sum \ln(1 - x_i)`.
+
+Expanding :math:`\ln B(\alpha,\beta) = \ln\Gamma(\alpha) + \ln\Gamma(\beta) - \ln\Gamma(\alpha+\beta)`:
 
 .. math::
 
@@ -494,6 +617,9 @@ Expanding :math:`\ln B(\alpha,\beta)`:
 Score functions
 ---------------
 
+Differentiating with respect to :math:`\alpha` (noting that
+:math:`d\ln\Gamma(z)/dz = \psi(z)`, the digamma function):
+
 .. math::
 
    \frac{\partial\ell}{\partial\alpha}
@@ -501,8 +627,15 @@ Score functions
    \frac{\partial\ell}{\partial\beta}
      &= n\bigl[\psi(\alpha+\beta) - \psi(\beta)\bigr] + \sum_{i=1}^{n}\ln(1-x_i).
 
+Notice the symmetry: each score has a digamma difference (from the
+normalizing constant) plus a data term.  The :math:`\alpha` score uses
+:math:`\ln x_i`; the :math:`\beta` score uses :math:`\ln(1-x_i)`.
+
 Fisher information
 ------------------
+
+The Fisher information matrix involves trigamma functions
+(:math:`\psi' = d\psi/d\alpha`):
 
 .. math::
 
@@ -512,20 +645,32 @@ Fisher information
          -\psi'(\alpha+\beta) & \psi'(\beta) - \psi'(\alpha+\beta)
        \end{pmatrix}.
 
+The :math:`-\psi'(\alpha+\beta)` off-diagonal means the two parameters are
+coupled: changing :math:`\alpha` affects how well we can estimate
+:math:`\beta`, and vice versa.
+
 MLE
 ---
 
-No closed-form solution exists. The two score equations form a system of
-nonlinear equations in :math:`\alpha` and :math:`\beta` involving digamma
-functions. Newton--Raphson iteration, using the Fisher information as the
-Hessian approximation, converges quickly. Good starting values can be obtained
-from the method of moments:
+No closed-form solution exists because the digamma function has no algebraic
+inverse.  The two score equations form a system of nonlinear equations that
+must be solved iteratively.  Newton--Raphson, using the Fisher information
+matrix as the Hessian approximation, converges quickly.
+
+Good starting values can be obtained from the **method of moments**.  The
+Beta distribution has :math:`E[X] = \alpha/(\alpha+\beta)` and
+:math:`\text{Var}(X) = \alpha\beta/[(\alpha+\beta)^2(\alpha+\beta+1)]`.
+Equating these to the sample mean :math:`\bar{x}` and sample variance
+:math:`s^2` and solving:
 
 .. math::
 
    \hat\alpha_0 = \bar{x}\!\left(\frac{\bar{x}(1-\bar{x})}{s^2} - 1\right),
    \qquad
    \hat\beta_0 = (1-\bar{x})\!\left(\frac{\bar{x}(1-\bar{x})}{s^2} - 1\right).
+
+These moment-based estimates are usually close enough for Newton's method
+to converge in a few iterations.
 
 .. code-block:: python
 
@@ -580,8 +725,10 @@ PDF
        \exp\!\left(-\frac{(\ln x - \mu)^2}{2\sigma^2}\right),
    \qquad x > 0.
 
-Here :math:`\mu` and :math:`\sigma^2` are the mean and variance of
-:math:`\ln X`, not of :math:`X` itself.
+This is a Normal density applied to :math:`\ln x`, with an extra factor of
+:math:`1/x` from the change-of-variables formula (the Jacobian of the log
+transformation).  The parameters :math:`\mu` and :math:`\sigma^2` are the
+mean and variance of :math:`\ln X`, not of :math:`X` itself.
 
 .. admonition:: Common Pitfall
 
@@ -637,13 +784,17 @@ the log-transformed data:
 MLE
 ---
 
-The MLEs are simply the Normal MLEs applied to :math:`y_i = \ln x_i`:
+The key insight is that if we define :math:`y_i = \ln x_i`, the
+:math:`y_i` are i.i.d. Normal, so the Normal MLEs apply directly:
 
 .. math::
 
    \hat{\mu} = \frac{1}{n}\sum_{i=1}^{n}\ln x_i = \bar{y},
    \qquad
    \hat{\sigma}^2 = \frac{1}{n}\sum_{i=1}^{n}(\ln x_i - \bar{y})^2.
+
+This is a common pattern in statistics: when a transformation reduces a
+problem to one we have already solved, we should use it.
 
 .. code-block:: python
 
@@ -730,7 +881,13 @@ With shape :math:`k > 0` and scale :math:`\lambda > 0`:
        \exp\!\left[-\left(\frac{x}{\lambda}\right)^k\right],
    \qquad x > 0.
 
-When :math:`k = 1` this reduces to :math:`\text{Exp}(1/\lambda)`.
+The factor :math:`(x/\lambda)^{k-1}` controls the shape near zero (just as
+:math:`x^{\alpha-1}` does for the Gamma).  The exponential term
+:math:`\exp[-(x/\lambda)^k]` governs the tail: when :math:`k > 1`, the
+exponent :math:`(x/\lambda)^k` grows faster than linearly, making the tail
+thinner than the Exponential (wear-out); when :math:`k < 1`, it grows
+slower, producing a heavier tail (infant mortality).  When :math:`k = 1`
+this reduces to :math:`\text{Exp}(1/\lambda)`.
 
 Likelihood
 ----------
@@ -899,8 +1056,15 @@ PDF
      = \frac{\alpha\, x_m^\alpha}{x^{\alpha+1}},
    \qquad x \ge x_m.
 
+The density is a **power law**: it decays as :math:`x^{-(\alpha+1)}` for
+large :math:`x`.  The tail index :math:`\alpha` controls how quickly the tail
+falls off --- larger :math:`\alpha` means a thinner tail (less extreme
+inequality).  The minimum :math:`x_m` is the smallest possible value.
+
 Likelihood
 ----------
+
+Multiplying the :math:`n` individual densities:
 
 .. math::
 
@@ -909,7 +1073,9 @@ Likelihood
      = \alpha^n\, x_m^{n\alpha}\,
        \left(\prod_{i=1}^{n} x_i\right)^{-(\alpha+1)},
 
-valid only when :math:`x_m \le x_{(1)} = \min_i x_i`.
+valid only when :math:`x_m \le x_{(1)} = \min_i x_i`.  This constraint is
+crucial: if we set :math:`x_m` above the smallest observation, that
+observation would have zero density and the likelihood would be zero.
 
 Log-likelihood
 --------------
@@ -1023,6 +1189,14 @@ With :math:`\nu > 0` degrees of freedom, location :math:`\mu`, and scale
             {\sigma\sqrt{\nu\pi}\;\Gamma\!\left(\frac{\nu}{2}\right)}
        \left(1 + \frac{1}{\nu}\left(\frac{x-\mu}{\sigma}\right)^2\right)^{-(\nu+1)/2}.
 
+Compare this with the Normal: the Normal has :math:`\exp(-z^2/2)`, which
+decays exponentially in :math:`z^2`.  The *t* replaces this with
+:math:`(1 + z^2/\nu)^{-(\nu+1)/2}`, which decays only as a power law.
+This means extreme values are much more probable under the *t* than the
+Normal.  As :math:`\nu \to \infty`, the power-law term converges to the
+Gaussian exponential (by the identity
+:math:`(1 + z^2/\nu)^{-\nu/2} \to e^{-z^2/2}`).
+
 When :math:`\mu = 0` and :math:`\sigma = 1` this is the standard
 *t*-distribution.
 
@@ -1065,15 +1239,25 @@ MLE
 ---
 
 No closed-form solutions exist. The score equations must be solved
-iteratively. A common approach uses the EM algorithm, treating the
-*t*-distribution as a scale mixture of normals. In the E-step one computes
-weights
+iteratively. A common and elegant approach uses the EM algorithm, based on
+the insight that the *t*-distribution can be written as a **scale mixture of
+Normals**: each observation :math:`x_i` is Normal with a data-point-specific
+precision that is itself Gamma-distributed.
+
+In the **E-step**, one computes a weight for each observation that measures
+how "typical" it is under the current parameter estimates:
 
 .. math::
 
-   w_i = \frac{\nu + 1}{\nu + (x_i - \mu)^2/\sigma^2},
+   w_i = \frac{\nu + 1}{\nu + (x_i - \mu)^2/\sigma^2}.
 
-and in the M-step one solves weighted normal equations:
+Points close to :math:`\mu` get weights near 1 (they look Normal); outliers
+get down-weighted (their large :math:`(x_i - \mu)^2` inflates the
+denominator).  This automatic down-weighting of outliers is why the
+*t*-distribution is robust.
+
+In the **M-step**, one solves weighted Normal equations --- exactly like
+Normal MLE but with the weights from the E-step:
 
 .. math::
 
@@ -1247,7 +1431,12 @@ Likelihood
      = \frac{1}{(b-a)^n}\,\mathbf{1}\!\bigl(a \le x_{(1)}\bigr)
        \,\mathbf{1}\!\bigl(x_{(n)} \le b\bigr),
 
-where :math:`x_{(1)} = \min x_i` and :math:`x_{(n)} = \max x_i`.
+where :math:`x_{(1)} = \min x_i` and :math:`x_{(n)} = \max x_i`.  The
+indicator functions :math:`\mathbf{1}(\cdot)` enforce the constraint that all
+data must lie within :math:`[a, b]`: the likelihood is exactly zero if any
+observation falls outside.  Among all valid :math:`(a, b)`, the likelihood
+decreases as the interval gets wider (because :math:`1/(b-a)^n` shrinks),
+so we want the *tightest possible* interval that still contains all the data.
 
 Log-likelihood
 --------------

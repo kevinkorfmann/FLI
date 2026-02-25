@@ -183,6 +183,12 @@ At significance level :math:`\alpha`:
 11.1.5 Composite Null Hypotheses
 ----------------------------------
 
+In many real problems, the null hypothesis does not pin down all
+parameters. For example, when comparing two groups we may hypothesise
+that the treatment effect is zero, but the baseline rate is still
+unknown. This is a *composite* null: some parameters are fixed, others
+are free.
+
 More generally, if :math:`\theta = (\psi, \lambda)` where :math:`\psi`
 is the parameter of interest and :math:`\lambda` is a nuisance
 parameter, we test :math:`H_0: \psi = \psi_0` (with :math:`\lambda`
@@ -196,7 +202,17 @@ unspecified) using
 
 where :math:`(\hat\psi, \hat\lambda)` is the unrestricted MLE and
 :math:`\hat\lambda_0` is the MLE of :math:`\lambda` under the
-constraint :math:`\psi = \psi_0`. By Wilks' theorem, this has a
+constraint :math:`\psi = \psi_0`.
+
+In words: we compare the fully optimised log-likelihood (both parameters
+free) to the *partially* optimised log-likelihood (the parameter of
+interest pinned at the null value, the nuisance parameter re-optimised
+subject to that constraint). The re-optimisation of :math:`\lambda`
+under the null is important---it gives the null hypothesis its "best
+shot" by choosing the nuisance parameter that makes the null fit as well
+as possible.
+
+By Wilks' theorem, this has a
 :math:`\chi^2_r` distribution where :math:`r = \dim(\psi)`.
 
 Now let's apply the LRT to our A/B test. Under :math:`H_0`, both groups
@@ -380,6 +396,13 @@ test does not reject at level :math:`\alpha` defines the
 11.2.3 Multiparameter Wald Test
 ---------------------------------
 
+When there are multiple parameters, we cannot simply compute a single
+"distance divided by standard error." Instead, we need to account for
+the correlations between the different parameter estimates. The Fisher
+information matrix :math:`I(\hat\theta)` captures both the precision of
+each estimate (diagonal entries) and how the estimates co-vary
+(off-diagonal entries).
+
 For a :math:`p`-dimensional parameter, testing
 :math:`H_0: \theta = \theta_0` uses
 
@@ -389,6 +412,13 @@ For a :math:`p`-dimensional parameter, testing
    = n\,(\hat\theta - \theta_0)^\top\,
      I(\hat\theta)\,(\hat\theta - \theta_0)
    \;\xrightarrow{d}\; \chi^2_p.
+
+This is a *quadratic form*---the multivariate generalisation of "squared
+distance in standard-error units." The information matrix acts as a
+metric that stretches and rotates the distance to account for the shape
+of the likelihood surface. When the parameters are uncorrelated,
+:math:`I` is diagonal and this reduces to a sum of individual Wald
+statistics, one per parameter.
 
 
 11.3 The Score (Rao) Test
@@ -424,8 +454,11 @@ Under :math:`H_0`, we know from :ref:`ch9_mle_theory` that
    \;\xrightarrow{d}\;
    \mathcal{N}\bigl(0,\; I(\theta_0)\bigr).
 
-Therefore, the **score statistic** (sometimes called the Rao statistic
-or Lagrange multiplier statistic) is
+To turn this into a test statistic, we standardise the score by its
+variance. The variance of the score under the null is exactly
+:math:`n\,I(\theta_0)` (this is, in fact, one of the definitions of
+Fisher information). Therefore, the **score statistic** (sometimes called
+the Rao statistic or Lagrange multiplier statistic) is
 
 .. math::
 
@@ -434,9 +467,14 @@ or Lagrange multiplier statistic) is
    = \frac{1}{n}\,S(\theta_0)^\top\,I(\theta_0)^{-1}\,S(\theta_0)
    \;\xrightarrow{d}\; \chi^2_r
 
-under :math:`H_0`, where :math:`r` is the number of constraints.
+under :math:`H_0`, where :math:`r` is the number of constraints. The
+logic is the same as any z-test: divide a quantity by its standard
+deviation to get something approximately standard normal, then square it
+to get a chi-squared. Here, the "quantity" is the score and its
+"standard deviation" comes from the Fisher information.
 
-In the scalar case, this simplifies to
+In the scalar case (one parameter, one constraint), the multivariate
+formula simplifies to
 
 .. math::
 
@@ -445,6 +483,10 @@ In the scalar case, this simplifies to
        \frac{\partial}{\partial\theta}\log f(x_i\mid\theta_0)
      \right]^2}
      {n\,I(\theta_0)}.
+
+The numerator is the squared total score (the slope of the
+log-likelihood at :math:`\theta_0`), and the denominator normalises it
+by the expected variability of the score under the null.
 
 Now let's apply the score test to our A/B test. Under :math:`H_0`,
 both groups share rate :math:`p_0 = p_{\text{pooled}}`. The score for
@@ -502,10 +544,15 @@ variable models).
 For :math:`X_1, \ldots, X_n \sim \mathcal{N}(\mu, \sigma^2_0)` with
 known variance, testing :math:`H_0: \mu = \mu_0`:
 
-- Score:
-  :math:`S(\mu_0) = \frac{n(\bar x - \mu_0)}{\sigma^2_0}`.
+- Score: the derivative of the log-likelihood evaluated at :math:`\mu_0`
+  is :math:`S(\mu_0) = \frac{n(\bar x - \mu_0)}{\sigma^2_0}`. This
+  measures how steeply the log-likelihood is rising at the null value.
+  If :math:`\bar x` is far from :math:`\mu_0`, the slope is large.
 - Fisher information:
-  :math:`I(\mu_0) = 1/\sigma^2_0`.
+  :math:`I(\mu_0) = 1/\sigma^2_0`. (Recall from the normal MLE that the
+  information about the mean is inversely proportional to the variance.)
+
+Plugging into the score statistic formula:
 
 .. math::
 
@@ -514,7 +561,11 @@ known variance, testing :math:`H_0: \mu = \mu_0`:
           {n/\sigma^2_0}
    = \frac{n(\bar x - \mu_0)^2}{\sigma^2_0}.
 
-This is exactly the square of the familiar :math:`z`-test statistic.
+This is exactly the square of the familiar :math:`z`-test statistic
+:math:`Z = \sqrt{n}(\bar x - \mu_0)/\sigma_0`. In other words, for the
+normal distribution with known variance, the score test, the Wald test,
+and the LRT all give the same answer---they coincide exactly, not just
+asymptotically.
 
 Now let's put all three tests side by side on our A/B test data, so you
 can see how they compare:
@@ -655,9 +706,20 @@ test statistics satisfy the inequality
 
    W_{\text{S}} \;\leq\; W_{\text{LR}} \;\leq\; W_{\text{W}}.
 
+Why does this ordering arise? Recall the geometric picture: the Wald
+test uses the curvature at the MLE to measure the distance to the null,
+while the score test uses the curvature at the null. Typically the
+log-likelihood is flatter at the MLE (the peak) than at the null
+(further from the peak), so the Wald test "under-corrects" for
+curvature and produces a larger statistic. The LRT, which uses the
+actual height difference, naturally falls between these two curvature-based
+approximations.
+
 This means the Wald test tends to reject most often (is most liberal),
 the score test rejects least often (is most conservative), and the LRT
-is in between. However, this ordering is not universal.
+is in between. However, this ordering is not universal---it can be
+violated when the log-likelihood is highly non-quadratic or when
+parameters lie near boundaries.
 
 11.4.3 Relative Merits
 ------------------------
@@ -777,7 +839,15 @@ where the standard error is
    = \sqrt{\frac{1}{n\,I(\hat\theta)}}
 
 and :math:`z_{\alpha/2}` is the :math:`(1-\alpha/2)` quantile of the
-standard normal.
+standard normal (for a 95% CI, this is 1.96).
+
+The standard error shrinks with :math:`\sqrt{n}` (more data means
+more precision) and grows when the Fisher information
+:math:`I(\hat\theta)` is small (parameters that are hard to pin down
+have wider intervals). Plugging in the MLE :math:`\hat\theta` for the
+unknown true parameter in the Fisher information is justified by the
+consistency of the MLE: as :math:`n` grows,
+:math:`I(\hat\theta) \to I(\theta)`.
 
 .. topic:: Wald Confidence Interval
 
@@ -794,8 +864,9 @@ standard normal.
 11.5.2 Using Observed Information
 -----------------------------------
 
-An alternative replaces the expected information with the observed
-information:
+An alternative replaces the expected information (an average over all
+possible datasets) with the *observed* information (computed from the
+actual dataset at hand):
 
 .. math::
 
@@ -870,7 +941,12 @@ concept is useful: it is simply :math:`\ell_P(\theta) = \ell(\theta)`.
 ------------------------------------------------
 
 The profile-likelihood confidence interval is obtained by inverting the
-likelihood ratio test. A :math:`100(1-\alpha)\%` confidence region for
+likelihood ratio test. The key idea is: *a confidence interval is the
+set of all parameter values that would not be rejected by a hypothesis
+test*. For each candidate value :math:`\psi`, we run a likelihood ratio
+test of :math:`H_0: \psi = \psi`; the values that pass form the CI.
+
+Formally, a :math:`100(1-\alpha)\%` confidence region for
 :math:`\psi` is the set
 
 .. math::
@@ -888,6 +964,12 @@ from its maximum:
      - \tfrac{1}{2}\chi^2_{1,\,1-\alpha}\bigr\}.
 
 For a 95% CI, the cutoff is :math:`\chi^2_{1,0.95}/2 = 3.84/2 = 1.92`.
+
+In the mountain analogy: draw a horizontal line 1.92 units below the
+summit of the profile log-likelihood. Every parameter value whose profile
+log-likelihood sits above this line is in the confidence interval. The
+endpoints of the CI are the two points where the profile log-likelihood
+crosses this threshold.
 
 Let's build a profile-likelihood CI for the treatment effect in our A/B
 test. We profile over the difference :math:`\delta = p_{\text{trt}} -
@@ -1077,8 +1159,9 @@ The profile-likelihood CI is a special case of a broader technique:
 11.7.1 General Construction
 -----------------------------
 
-A :math:`100(1-\alpha)\%` confidence region for the full
-:math:`p`-dimensional parameter :math:`\theta` is
+The same "inversion" logic from profile-likelihood CIs extends to
+the full parameter vector. A :math:`100(1-\alpha)\%` confidence region
+for the full :math:`p`-dimensional parameter :math:`\theta` is
 
 .. math::
 
@@ -1089,7 +1172,12 @@ A :math:`100(1-\alpha)\%` confidence region for the full
 
 This is the set of all parameter values that, if tested as
 :math:`H_0: \theta = \theta_0`, would **not** be rejected by the LRT at
-level :math:`\alpha`.
+level :math:`\alpha`. Geometrically, it is the set of all points on the
+log-likelihood surface that lie within a certain "height" of the summit.
+The chi-squared quantile :math:`\chi^2_{p,1-\alpha}` controls how far
+below the peak we are willing to go. With more parameters (:math:`p`
+larger), the critical value is larger, reflecting the need for a wider
+region in higher dimensions.
 
 11.7.2 Geometry
 -----------------
@@ -1114,11 +1202,19 @@ The Wald confidence region is
      (\hat\theta - \theta) \leq \chi^2_{p,\,1-\alpha}
    \bigr\}.
 
+This is a quadratic form in :math:`(\hat\theta - \theta)`, which
+defines an **ellipse** centred at :math:`\hat\theta`. The shape and
+orientation of the ellipse are determined by the Fisher information
+matrix: directions in which the likelihood is sharply curved (high
+information) produce short axes, while directions of low curvature
+produce long axes. Correlated parameters tilt the ellipse off-axis.
+
 This is always an ellipse centred at :math:`\hat\theta`. The LRT region
 equals the Wald region when the log-likelihood is exactly quadratic
 (which happens in exponential families with canonical sufficient
 statistics). In general, they differ, and the LRT region is preferred
-for its better coverage properties.
+for its better coverage properties because it follows the actual
+contours of the log-likelihood rather than a quadratic approximation.
 
 
 11.8 Complete A/B Test Analysis: All Methods Together
@@ -1270,6 +1366,14 @@ is
    \;\approx\; m\alpha
    \quad\text{for small } \alpha.
 
+The exact formula follows from independence: the probability that a
+single test does *not* falsely reject is :math:`1-\alpha`, so the
+probability that *all* :math:`m` tests avoid a false rejection is
+:math:`(1-\alpha)^m`. One minus this gives the probability of at least
+one false rejection. The approximation :math:`\approx m\alpha` comes
+from the first-order Taylor expansion of :math:`(1-\alpha)^m` when
+:math:`\alpha` is small.
+
 With :math:`m = 20` tests at :math:`\alpha = 0.05`, the FWER is about
 :math:`1 - 0.95^{20} \approx 0.64`---we have a 64% chance of at least
 one false positive.
@@ -1320,9 +1424,18 @@ adjusted *p*-value is below :math:`\alpha`:
 
    p_j^{\text{adj}} = \min(m \cdot p_j,\; 1).
 
-**Strengths:** Simple, valid for any dependence structure among tests.
+The :math:`\min(\cdot, 1)` ensures the adjusted *p*-value stays a valid
+probability. The intuition for multiplying by :math:`m` is simple: if
+you are running :math:`m` tests, the bar for significance should be
+:math:`m` times higher than for a single test. A *p*-value of 0.04
+might look significant on its own, but after running 20 tests, the
+adjusted *p*-value is :math:`20 \times 0.04 = 0.80`---far from
+significant.
+
+**Strengths:** Simple, valid for any dependence structure among tests
+(the union bound does not require independence).
 **Weakness:** Very conservative when :math:`m` is large, leading to low
-power.
+power (many truly significant effects get missed).
 
 11.9.3 Holm's Step-Down Procedure
 ------------------------------------
@@ -1347,14 +1460,22 @@ same threshold :math:`\alpha/m` for every test. Holm uses the threshold
 :math:`\alpha/(m-1)` for the next, and so on---larger (less stringent)
 thresholds for the later tests.
 
-**Adjusted *p*-values.** Holm's adjusted *p*-values are computed as
+**Adjusted *p*-values.** Rather than comparing each *p*-value against a
+changing threshold, it is often more convenient to compute *adjusted*
+*p*-values that can be compared directly against :math:`\alpha`.
+Holm's adjusted *p*-values are computed as
 
 .. math::
 
    \tilde p_{(j)}
    = \max_{k \leq j}\bigl[(m - k + 1)\,p_{(k)}\bigr],
 
-capped at 1.
+capped at 1. Each raw *p*-value :math:`p_{(k)}` is multiplied by the
+number of hypotheses still in play at step :math:`k`, namely
+:math:`m - k + 1`. The running maximum ensures that the adjusted
+*p*-values remain in sorted order (a requirement for the step-down logic
+to be consistent). You then simply reject all hypotheses whose adjusted
+*p*-value falls below :math:`\alpha`.
 
 .. topic:: Example
 

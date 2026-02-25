@@ -135,7 +135,17 @@ Define the **Lagrangian function**
    = f(\boldsymbol{\theta})
    - \sum_{j=1}^m \lambda_j\,h_j(\boldsymbol{\theta}).
 
-The necessary conditions for a constrained minimum are
+Reading this formula: the Lagrangian takes the objective :math:`f` and subtracts
+a penalty for each constraint, weighted by the multiplier :math:`\lambda_j`.
+If :math:`\lambda_j` is large, the corresponding constraint exerts a strong
+pull on the solution. The Lagrangian converts the constrained problem into an
+unconstrained one: finding a stationary point of
+:math:`\mathcal{L}(\boldsymbol{\theta}, \boldsymbol{\lambda})` with respect to
+*both* :math:`\boldsymbol{\theta}` and :math:`\boldsymbol{\lambda}` gives you
+the constrained optimum and the multipliers simultaneously.
+
+The necessary conditions for a constrained minimum are found by setting the
+partial derivatives to zero:
 
 .. math::
    :label: lag_conditions
@@ -147,9 +157,12 @@ The necessary conditions for a constrained minimum are
    \nabla_{\boldsymbol{\lambda}} \mathcal{L}
    &= -\mathbf{h}(\boldsymbol{\theta}) = \mathbf{0}.
 
-The first equation is :eq:`tangent_cond`; the second enforces the constraints.
-Together they form a system of :math:`p + m` equations in :math:`p + m`
-unknowns :math:`(\boldsymbol{\theta}, \boldsymbol{\lambda})`.
+The first equation is :eq:`tangent_cond` --- the gradient of :math:`f` must lie
+in the span of the constraint gradients. The second equation is simply the
+requirement that all constraints are satisfied (:math:`h_j = 0`). Together
+they form a system of :math:`p + m` equations in :math:`p + m` unknowns
+:math:`(\boldsymbol{\theta}, \boldsymbol{\lambda})`, which can be solved by
+Newton's method or other root-finding techniques.
 
 Let us solve this both analytically and numerically and compare.
 

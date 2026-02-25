@@ -60,6 +60,10 @@ Key identities
       = -2\,\boldsymbol{\Sigma}^{-1}(\mathbf{x} - \boldsymbol{\mu}).
 
    This is the multivariate analogue of :math:`d(x - \mu)^2/d\mu = -2(x - \mu)`.
+   The :math:`\boldsymbol{\Sigma}^{-1}` plays the role of :math:`1/\sigma^2`,
+   rescaling the residual vector to account for different variances and
+   correlations along different directions.  This identity is used every time
+   we differentiate a MVN log-likelihood with respect to the mean.
 
 2. **Derivative of log-determinant.** For a positive definite matrix
    :math:`\boldsymbol{\Sigma}`:
@@ -103,7 +107,9 @@ Key identities
       = \text{tr}(\mathbf{B}\,\mathbf{a}\mathbf{a}^\top).
 
    This identity is used constantly to convert sums of quadratic forms into a
-   single trace expression.
+   single trace expression.  It works because the left-hand side is a scalar,
+   and a scalar equals its own trace; then we use the cyclic property of the
+   trace to rearrange the terms.
 
 6. **Sum of outer products.** Given observations
    :math:`\mathbf{x}_1, \dots, \mathbf{x}_n` with sample mean
@@ -538,7 +544,15 @@ Let :math:`\mathbf{W} \sim \mathcal{W}_p(n, \boldsymbol{\Sigma})` where
          -\tfrac{1}{2}\text{tr}(\boldsymbol{\Sigma}^{-1}\mathbf{W})
        \right),
 
-where :math:`\Gamma_p` is the multivariate gamma function:
+The exponential term :math:`\exp(-\frac{1}{2}\text{tr}(\boldsymbol{\Sigma}^{-1}\mathbf{W}))`
+is the multivariate analogue of :math:`e^{-w/(2\sigma^2)}` for the Chi-squared.
+The trace :math:`\text{tr}(\boldsymbol{\Sigma}^{-1}\mathbf{W})` measures the
+"size" of :math:`\mathbf{W}` relative to :math:`\boldsymbol{\Sigma}` ---
+larger scatter matrices (relative to the true covariance) are penalised.
+The :math:`|\mathbf{W}|^{(n-p-1)/2}` term plays the role of
+:math:`x^{k/2-1}` in the Chi-squared PDF.
+
+Here :math:`\Gamma_p` is the multivariate gamma function:
 
 .. math::
 

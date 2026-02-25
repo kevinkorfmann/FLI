@@ -200,8 +200,16 @@ For MLE we maximize the log-likelihood :math:`\ell(\boldsymbol{\theta})
    \nabla f &= -\nabla \ell = -\mathbf{S}(\boldsymbol{\theta}), \\
    \mathbf{H}_f &= -\nabla^2 \ell = -\mathbf{H}_\ell(\boldsymbol{\theta}),
 
-where :math:`\mathbf{S} = \nabla \ell` is the *score vector*. The Newton update
-:eq:`newton_update` becomes
+where :math:`\mathbf{S} = \nabla \ell` is the *score vector* --- the vector of
+partial derivatives of the log-likelihood with respect to each parameter. It
+points in the direction of steepest increase of the log-likelihood. The Hessian
+of the negative log-likelihood picks up a minus sign from the flip.
+
+Now we plug these into the general Newton update :eq:`newton_update`. Since we
+defined :math:`f = -\ell`, the Newton step
+:math:`-\mathbf{H}_f^{-1}\nabla f` becomes
+:math:`-(-\mathbf{H}_\ell)^{-1}(-\mathbf{S})`. The two negatives cancel,
+giving us a particularly clean formula:
 
 .. math::
    :label: newton_mle
@@ -214,8 +222,18 @@ where :math:`\mathbf{S} = \nabla \ell` is the *score vector*. The Newton update
    + \bigl[\mathbf{H}_\ell(\boldsymbol{\theta}_k)\bigr]^{-1}
      \mathbf{S}(\boldsymbol{\theta}_k).
 
+Reading this formula: start at the current parameter estimate, then *add* the
+score (which says how the log-likelihood wants parameters to change), weighted
+by the inverse curvature of the log-likelihood (which says how much each
+parameter should move). Parameters with strong curvature get modest updates;
+parameters in flat directions of the log-likelihood get larger updates.
+
 The matrix :math:`\mathbf{J}(\boldsymbol{\theta}) = -\mathbf{H}_\ell(\boldsymbol{\theta})`
-is the **observed information matrix**. Rewriting:
+is the **observed information matrix**. It is the negative of the Hessian of
+the log-likelihood --- that is, the matrix of second derivatives of the
+*negative* log-likelihood. The word "information" is not accidental: where the
+log-likelihood curves sharply (high information), the data tell you a lot about
+the parameter, and the MLE has low variance. Rewriting:
 
 .. math::
 
@@ -251,7 +269,17 @@ The log-likelihood, score, and Hessian for logistic regression are:
    \mathbf{H}_\ell
    &= -\mathbf{X}^{\!\top}\mathbf{W}\mathbf{X},
 
-where :math:`p_i = 1/(1+e^{-\eta_i})` and :math:`\mathbf{W} = \text{diag}(p_i(1-p_i))`.
+where :math:`p_i = 1/(1+e^{-\eta_i})` is the predicted probability for
+observation :math:`i`, and
+:math:`\mathbf{W} = \text{diag}(p_i(1-p_i))` is a diagonal matrix of
+*variance weights* --- each :math:`p_i(1-p_i)` is the variance of a
+Bernoulli with probability :math:`p_i`. The score
+:math:`\mathbf{X}^{\!\top}(\mathbf{y} - \mathbf{p})` has a nice interpretation:
+it is a sum over all observations of each feature vector :math:`\mathbf{x}_i`,
+weighted by the residual :math:`y_i - p_i` (how wrong the current prediction
+is). The Hessian is always negative semi-definite, which means the log-likelihood
+is concave and Newton will always converge to the unique maximum (when it exists).
+
 The Newton update is
 :math:`\boldsymbol{\beta}_{k+1} = \boldsymbol{\beta}_k + \mathbf{J}_k^{-1}\mathbf{S}_k`
 where :math:`\mathbf{J}_k = \mathbf{X}^{\!\top}\mathbf{W}_k\mathbf{X}`.
@@ -333,8 +361,13 @@ information**:
      \mathbf{H}_\ell(\boldsymbol{\theta})
    \right].
 
-The second equality holds under regularity conditions that allow interchange
-of differentiation and integration.
+The first expression says: the Fisher information is the variance-covariance
+matrix of the score vector. Where the score has high variance (the
+log-likelihood's slope fluctuates a lot across data sets), the data carry a lot
+of information about the parameter. The second expression gives an equivalent
+definition: it is the expected curvature of the log-likelihood, averaged over
+all possible data sets. The second equality holds under regularity conditions
+that allow interchange of differentiation and integration.
 
 Here is the key idea: instead of using the *actual* curvature at the current
 point (which might be badly behaved), we use the *average* curvature across all
@@ -508,6 +541,12 @@ where :math:`\mathbf{W} = \operatorname{diag}(w_1, \dots, w_n)` with
 
 and :math:`\boldsymbol{\Delta} = \operatorname{diag}(1/g'(\mu_1), \dots, 1/g'(\mu_n))`.
 
+The weight :math:`w_i` balances two factors: the natural variability of the
+response (through :math:`\operatorname{Var}(Y_i)`) and how sensitive the mean
+is to changes in the linear predictor (through :math:`g'(\mu_i)`).
+Observations with low variance and a steep link function get the highest
+weight --- they are the most informative about :math:`\boldsymbol{\beta}`.
+
 Deriving the IRLS Update
 --------------------------
 
@@ -521,7 +560,8 @@ Substituting into the Fisher-scoring update :eq:`fisher_scoring`:
      \mathbf{X}^{\!\top}\mathbf{W}_k\,\boldsymbol{\Delta}_k\,
      (\mathbf{y} - \boldsymbol{\mu}_k).
 
-Define the **working response**
+The trick is to rewrite this as a weighted least-squares problem. Define the
+**working response** (also called the pseudo-response):
 
 .. math::
 
@@ -530,7 +570,13 @@ Define the **working response**
    + \boldsymbol{\Delta}_k\,(\mathbf{y} - \boldsymbol{\mu}_k)
    = \boldsymbol{\eta}_k + \boldsymbol{\Delta}_k\,(\mathbf{y} - \boldsymbol{\mu}_k).
 
-Then the update becomes
+Reading this formula: the working response :math:`\mathbf{z}_k` is the current
+linear predictor :math:`\boldsymbol{\eta}_k` plus a linearized residual. It is
+what the linear predictor *would need to be* if the model were exactly linear.
+The factor :math:`\boldsymbol{\Delta}_k` converts residuals from the
+response scale to the linear-predictor scale (via the derivative of the link).
+
+With this definition, the Fisher-scoring update simplifies to
 
 .. math::
    :label: irls
@@ -540,8 +586,12 @@ Then the update becomes
      \mathbf{X}^{\!\top}\mathbf{W}_k\,\mathbf{z}_k.
 
 This is precisely a **weighted least-squares** regression of :math:`\mathbf{z}_k`
-on :math:`\mathbf{X}` with weights :math:`\mathbf{W}_k`. At each iteration the
-weights and working response are updated, hence "iteratively reweighted."
+on :math:`\mathbf{X}` with weights :math:`\mathbf{W}_k`. To verify: if
+you set up the WLS normal equations
+:math:`\min_\beta \sum_i w_i (z_i - \mathbf{x}_i^{\!\top}\beta)^2`,
+differentiate, and set to zero, you get exactly the expression above.
+At each iteration the weights and working response are updated, hence
+"iteratively reweighted."
 
 This is how R's ``glm()`` function and most statistical software solve GLMs.
 For the canonical link (e.g., logit for binomial, log for Poisson), the
@@ -696,8 +746,11 @@ Add a positive diagonal matrix to force positive definiteness:
    = \mathbf{H}_k + \lambda_k\,\mathbf{I},
 
 where :math:`\lambda_k \geq 0` is chosen so that :math:`\tilde{\mathbf{H}}_k`
-is positive definite (for minimization). This is a form of **Levenberg--Marquardt
-regularization**.
+is positive definite (for minimization). Since
+:math:`\lambda_k \mathbf{I}` adds :math:`\lambda_k` to every eigenvalue of
+:math:`\mathbf{H}_k`, choosing :math:`\lambda_k` larger than the magnitude of
+the most negative eigenvalue is sufficient to make the modified Hessian
+positive definite. This is a form of **Levenberg--Marquardt regularization**.
 
 .. admonition:: What's the Intuition?
 
@@ -1085,7 +1138,9 @@ observations :math:`(y_i, \mathbf{x}_i)`, :math:`y_i \in \{0, 1\}`:
      - \log\bigl(1 + e^{\mathbf{x}_i^{\!\top}\boldsymbol{\beta}}\bigr)
    \Bigr].
 
-The score vector and Hessian are
+The score vector and Hessian are derived by differentiating
+:math:`\ell(\boldsymbol{\beta})` with respect to :math:`\boldsymbol{\beta}`.
+The first derivative gives the score; the second derivative gives the Hessian:
 
 .. math::
 
@@ -1099,8 +1154,9 @@ The score vector and Hessian are
 where :math:`p_i = 1/(1 + e^{-\mathbf{x}_i^{\!\top}\boldsymbol{\beta}})` and
 :math:`\mathbf{W} = \operatorname{diag}(p_i(1-p_i))`.
 
-Since the logit is the canonical link, the observed and expected information
-are identical:
+Since the logit is the canonical link for the Bernoulli distribution, the
+observed and expected information are identical --- you get the same matrix
+whether you use the actual Hessian or its expectation:
 
 .. math::
 
@@ -1108,7 +1164,9 @@ are identical:
    = \mathcal{I}(\boldsymbol{\beta})
    = \mathbf{X}^{\!\top}\mathbf{W}\,\mathbf{X}.
 
-The Newton (= Fisher scoring = IRLS) update is
+This is why, for logistic regression, Newton--Raphson, Fisher scoring, and IRLS
+all produce exactly the same iterates. The Newton (= Fisher scoring = IRLS)
+update is
 
 .. math::
 
@@ -1118,6 +1176,10 @@ The Newton (= Fisher scoring = IRLS) update is
 
 with working response
 :math:`\mathbf{z}_k = \mathbf{X}\boldsymbol{\beta}_k + \mathbf{W}_k^{-1}(\mathbf{y} - \mathbf{p}_k)`.
+In words: at each iteration, form a "linearized" version of the response
+(:math:`\mathbf{z}_k`), then do a weighted regression of this linearized
+response on the features, where the weights come from the current predicted
+probabilities.
 
 This typically converges in 5--10 iterations, with each iteration costing
 :math:`O(np^2)`.

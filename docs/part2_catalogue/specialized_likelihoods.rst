@@ -58,6 +58,12 @@ The profile log-likelihood for :math:`\theta` is
 where :math:`\hat{\lambda}(\theta)` is the constrained MLE of the nuisance
 parameter :math:`\lambda` holding :math:`\theta` fixed.
 
+In plain English: for each hypothetical value of :math:`\theta`, ask "what is
+the best :math:`\lambda` could be?" and record the resulting log-likelihood.
+This sweeps out a curve over :math:`\theta` alone, and its peak is at the
+full MLE :math:`\hat{\theta}`.  The profile likelihood is *not* a true
+likelihood, but it behaves like one for inference purposes.
+
 .. code-block:: python
 
    # Profile likelihood: the idea in code
@@ -87,14 +93,18 @@ parameter :math:`\lambda` holding :math:`\theta` fixed.
 Confidence intervals via Wilks' theorem
 -----------------------------------------
 
-Wilks' theorem states that, under regularity conditions,
+Wilks' theorem states that, under regularity conditions, the twice-difference
+in profile log-likelihoods converges to a Chi-squared distribution:
 
 .. math::
 
    2\bigl[\ell_P(\hat{\theta}) - \ell_P(\theta_0)\bigr]
      \;\xrightarrow{d}\; \chi^2_1,
 
-so a :math:`(1-\alpha)` confidence region is
+This is a powerful result: it provides a confidence interval without needing
+to compute standard errors or Fisher information.  A :math:`(1-\alpha)`
+confidence region is simply the set of parameter values where the profile
+log-likelihood is "close enough" to its maximum:
 :math:`\{\theta : 2[\ell_P(\hat\theta) - \ell_P(\theta)] \le \chi^2_{1,\alpha}\}`.
 
 .. code-block:: python
@@ -163,8 +173,15 @@ individual :math:`d_j` fails (given exactly one failure occurs) is
    \frac{\exp(\boldsymbol{\beta}^\top \mathbf{z}_{d_j})}
         {\sum_{i \in \mathcal{R}_j}\exp(\boldsymbol{\beta}^\top \mathbf{z}_i)},
 
-where the risk set :math:`\mathcal{R}_j` contains everyone still at risk.
-The baseline :math:`h_0(t_{(j)})` cancels. The partial likelihood is
+where the risk set :math:`\mathcal{R}_j` contains everyone still at risk
+at time :math:`t_{(j)}`.  This formula is a **softmax**: the numerator is
+the hazard contribution of the individual who actually failed, and the
+denominator sums the hazard contributions of everyone who *could have*
+failed.  The crucial trick is that :math:`h_0(t_{(j)})` appears in both
+numerator and denominator, so it cancels completely.
+
+The partial likelihood is the product of these conditional probabilities
+over all :math:`D` observed events:
 
 .. math::
 
@@ -172,6 +189,11 @@ The baseline :math:`h_0(t_{(j)})` cancels. The partial likelihood is
      = \prod_{j=1}^{D}
        \frac{\exp(\boldsymbol{\beta}^\top \mathbf{z}_{d_j})}
             {\sum_{i \in \mathcal{R}_j}\exp(\boldsymbol{\beta}^\top \mathbf{z}_i)}.
+
+Each factor asks: "among everyone at risk at this time, how plausible was it
+that *this particular person* was the one to fail?"  A positive coefficient
+:math:`\beta_k` means higher values of covariate :math:`k` increase the
+hazard (higher failure risk).
 
 .. code-block:: python
 
@@ -279,6 +301,12 @@ nuisance parameter with distribution :math:`\pi(\lambda)`:
 
    L_M(\theta)
      = \int L(\theta, \lambda)\,\pi(\lambda)\,d\lambda.
+
+Where the profile likelihood maximizes over the nuisance parameter, the
+marginal likelihood *averages* over it, weighting each value of
+:math:`\lambda` by a prior or mixing distribution :math:`\pi(\lambda)`.
+This is conceptually closer to Bayesian thinking: rather than picking the
+single best :math:`\lambda`, we account for all possible values.
 
 .. code-block:: python
 
@@ -388,6 +416,11 @@ Definition
 
 where :math:`T` is a sufficient statistic for the nuisance parameters.
 
+The idea is elegant: if :math:`T` "captures" all the information about the
+nuisance parameters, then conditioning on :math:`T = t` removes the nuisance
+parameters from the probability model.  What remains depends only on
+:math:`\theta`.
+
 Example: matched pairs in logistic regression
 ------------------------------------------------
 
@@ -472,11 +505,22 @@ likelihood is
    L_{\text{CL}}(\theta)
      = \prod_{k=1}^{K} f_{A_k}(\mathbf{x}_{A_k} \mid \theta).
 
-**Pairwise likelihood** (the most common variant):
+The idea is to replace the intractable full joint density with a product of
+tractable *marginal* or *conditional* densities over subsets of the data.
+Each factor :math:`f_{A_k}` is a valid probability model for a small piece
+of the data, and we multiply them together as if they were independent (even
+though they are not).  This is not a true likelihood, but the resulting
+estimator is consistent.
+
+**Pairwise likelihood** (the most common variant) uses all pairs of
+observations:
 
 .. math::
 
    L_{\text{pair}}(\theta) = \prod_{i < j} f(x_i, x_j \mid \theta).
+
+Each pair's bivariate density is easy to compute, even when the full
+:math:`n`-dimensional joint density is not.
 
 .. code-block:: python
 
@@ -565,15 +609,22 @@ Properties
 ----------
 
 * The composite MLE is consistent but not fully efficient.
-* Standard errors require the **Godambe sandwich correction**:
+* Standard errors require the **Godambe sandwich correction** (also called
+  the "robust" or "sandwich" variance):
 
   .. math::
 
      \text{Var}(\hat\theta_{\text{CL}})
        \approx H^{-1}\,J\,H^{-1},
 
-  where :math:`H = -E[\nabla^2 \ell_{\text{CL}}]` and
-  :math:`J = \text{Var}(\nabla\ell_{\text{CL}})`.
+  where :math:`H = -E[\nabla^2 \ell_{\text{CL}}]` (the sensitivity, measuring
+  curvature) and :math:`J = \text{Var}(\nabla\ell_{\text{CL}})` (the
+  variability of the composite score).  The "sandwich" name comes from
+  :math:`J` being sandwiched between two copies of :math:`H^{-1}`.  For a
+  true likelihood, :math:`H = J` and the sandwich reduces to the usual
+  :math:`H^{-1}`, but for a composite likelihood the mismatch between
+  :math:`H` and :math:`J` inflates the standard errors --- the price we
+  pay for not using the full joint distribution.
 
 .. code-block:: python
 
@@ -614,13 +665,27 @@ valid inference even without a fully specified distribution.
 Definition
 ----------
 
-Suppose :math:`E[Y_i] = \mu_i(\boldsymbol{\beta})` and
-:math:`\text{Var}(Y_i) = \phi\,V(\mu_i)`. The **quasi-score** is
+Suppose we specify only two things about the distribution:
+
+1. The mean: :math:`E[Y_i] = \mu_i(\boldsymbol{\beta})`.
+2. The variance: :math:`\text{Var}(Y_i) = \phi\,V(\mu_i)`, where
+   :math:`V(\mu)` is a known **variance function** and :math:`\phi` is an
+   unknown scale (the dispersion parameter).
+
+We do *not* specify the full probability distribution.  The **quasi-score**
+mimics what the score function would look like if we had a full likelihood:
 
 .. math::
 
    q_i(\boldsymbol{\beta})
      = \frac{y_i - \mu_i}{V(\mu_i)}\,\frac{\partial\mu_i}{\partial\boldsymbol{\beta}}.
+
+Reading this formula: :math:`(y_i - \mu_i)/V(\mu_i)` is a standardized
+residual (deviation from the mean, scaled by the variance function), and
+:math:`\partial\mu_i/\partial\boldsymbol{\beta}` propagates the residual
+back to the parameter space.  Setting :math:`\sum q_i = 0` gives estimating
+equations that produce consistent estimates even without knowing the true
+distribution.
 
 .. code-block:: python
 

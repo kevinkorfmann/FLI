@@ -73,7 +73,9 @@ Let :math:`\mathbf{X}` denote the *observed* (incomplete) data and
 - :math:`p(\mathbf{Z} \mid \mathbf{X}, \boldsymbol{\theta})` for the
   conditional density of the latent variables given the observed data.
 
-The relationship is
+The relationship between them is simply the law of total probability ---
+to get the probability of the observed data, we sum (or integrate) over all
+possible values of the hidden variables:
 
 .. math::
    :label: marginal
@@ -83,7 +85,8 @@ The relationship is
    = \int p(\mathbf{X} \mid \mathbf{Z}, \boldsymbol{\theta})\,
      p(\mathbf{Z} \mid \boldsymbol{\theta})\,d\mathbf{Z}.
 
-(Replace the integral with a sum when :math:`\mathbf{Z}` is discrete.)
+(Replace the integral with a sum when :math:`\mathbf{Z}` is discrete, as in
+mixture models where :math:`Z` is a cluster label.)
 
 The observed-data log-likelihood is
 
@@ -93,7 +96,11 @@ The observed-data log-likelihood is
    = \log p(\mathbf{X} \mid \boldsymbol{\theta})
    = \log \int p(\mathbf{X}, \mathbf{Z} \mid \boldsymbol{\theta})\,d\mathbf{Z}.
 
-The log-of-an-integral is hard to optimize. Let us see *why* it is hard, with
+The log-of-an-integral (or log-of-a-sum) is hard to optimize because the
+logarithm does not pass through the integral. If the log could be pushed
+inside, we would have a sum of simple terms; instead, we have the log of a
+sum of terms, and the parameters are entangled in a way that prevents
+closed-form solutions. Let us see *why* it is hard, with
 our purchase-amount data.
 
 .. code-block:: python
@@ -171,7 +178,10 @@ log inside the expectation, giving us a tractable lower bound.
 Applying Jensen's Inequality
 ------------------------------
 
-Since :math:`\log` is concave, Jensen's inequality gives
+Since :math:`\log` is concave, Jensen's inequality
+(:math:`\log \mathbb{E}[X] \geq \mathbb{E}[\log X]`) lets us push the
+logarithm inside the expectation, at the cost of turning the equality into an
+inequality:
 
 .. math::
    :label: elbo_ineq
@@ -186,7 +196,9 @@ Since :math:`\log` is concave, Jensen's inequality gives
 
 The quantity :math:`\mathcal{L}(q, \boldsymbol{\theta})` is called the
 **evidence lower bound (ELBO)**. It is a lower bound on the log-likelihood
-for *any* choice of :math:`q`.
+for *any* choice of :math:`q`. The name "evidence" comes from Bayesian
+statistics, where :math:`p(\mathbf{X} \mid \boldsymbol{\theta})` is called
+the evidence or marginal likelihood.
 
 This bound is the foundation of the entire EM algorithm.  By choosing :math:`q`
 wisely, we can make the bound tight; by maximizing the bound over
@@ -195,7 +207,8 @@ wisely, we can make the bound tight; by maximizing the bound over
 Decomposing the ELBO
 ----------------------
 
-We can rewrite the ELBO as
+We can split the ELBO into two recognizable pieces by separating the
+numerator of the log-ratio:
 
 .. math::
 
@@ -204,10 +217,16 @@ We can rewrite the ELBO as
      \,d\mathbf{Z}
    - \int q(\mathbf{Z})\,\log q(\mathbf{Z})\,d\mathbf{Z}.
 
-The first term is the expected complete-data log-likelihood under :math:`q`.
-The second is the entropy of :math:`q`.
+The first term is the expected complete-data log-likelihood under :math:`q` ---
+how well the model (with parameters :math:`\boldsymbol{\theta}`) explains the
+data, averaged over our beliefs about the latent variables. The second term is
+the entropy :math:`H(q)` --- it measures how spread out or "uncertain" our
+distribution :math:`q` over the latent variables is. Maximizing the ELBO
+therefore balances fitting the data well (first term) with keeping :math:`q`
+as spread out as possible (second term).
 
-Alternatively, the gap between the log-likelihood and the ELBO is
+Alternatively, the gap between the log-likelihood and the ELBO has a clean
+information-theoretic interpretation:
 
 .. math::
    :label: gap
@@ -217,7 +236,9 @@ Alternatively, the gap between the log-likelihood and the ELBO is
      \;\|\; p(\mathbf{Z} \mid \mathbf{X}, \boldsymbol{\theta})\bigr)
    \;\geq\; 0,
 
-where :math:`\operatorname{KL}` denotes the Kullback--Leibler divergence:
+where :math:`\operatorname{KL}` denotes the Kullback--Leibler divergence, a
+measure of how different two distributions are (always non-negative, zero only
+when the distributions are identical):
 
 .. math::
 
@@ -294,6 +315,15 @@ where the **Q-function** is
      \!\left[\log p(\mathbf{X}, \mathbf{Z} \mid \boldsymbol{\theta})\right]
    = \int p(\mathbf{Z} \mid \mathbf{X}, \boldsymbol{\theta}^{(t)})\,
      \log p(\mathbf{X}, \mathbf{Z} \mid \boldsymbol{\theta})\,d\mathbf{Z}.
+
+Reading the Q-function: it asks "if the latent variables were distributed
+according to our current best guess
+:math:`p(\mathbf{Z} \mid \mathbf{X}, \boldsymbol{\theta}^{(t)})`, how good
+would the parameters :math:`\boldsymbol{\theta}` be at explaining the
+*complete* data?" Notice the two different roles of :math:`\boldsymbol{\theta}`:
+the old value :math:`\boldsymbol{\theta}^{(t)}` controls the distribution we
+average over (in the E-step), while the new :math:`\boldsymbol{\theta}` inside
+the log is the one we optimize (in the M-step).
 
 In words: the E-step computes the expected complete-data log-likelihood,
 averaging over the current conditional distribution of the latent variables;
@@ -398,6 +428,9 @@ Then
 Complete-Data Log-Likelihood
 -----------------------------
 
+If we *knew* which component each observation came from, the log-likelihood
+would be:
+
 .. math::
 
    \log p(\mathbf{X}, \mathbf{Z} \mid \boldsymbol{\theta})
@@ -405,9 +438,13 @@ Complete-Data Log-Likelihood
      \bigl[\log \pi_k
      + \log \mathcal{N}(x_i \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)\bigr].
 
+Reading this formula: for each observation :math:`i`, the indicator
+:math:`\mathbb{1}[z_i = k]` is 1 for the true component and 0 for all others,
+so the double sum reduces to a single Gaussian log-density for each point.
 This is a simple sum of Gaussian log-densities, weighted by indicator
 functions --- much easier to handle than the log-sum in the observed-data
-likelihood.
+likelihood. The beauty is that the parameters of each component appear in
+separate terms, so maximization decouples into :math:`K` independent problems.
 
 E-Step: Computing Responsibilities
 ------------------------------------
@@ -494,7 +531,8 @@ subject to :math:`\sum_k \pi_k = 1`. Using a Lagrange multiplier
    \mathcal{L} = \sum_{k=1}^K N_k \log \pi_k + \lambda\Bigl(1 - \sum_{k=1}^K \pi_k\Bigr),
 
 where :math:`N_k = \sum_{i=1}^n \gamma_{ik}^{(t)}` is the effective number of
-points assigned to component :math:`k`. Setting :math:`\partial\mathcal{L}/\partial\pi_k = 0`:
+points assigned to component :math:`k` (the sum of responsibilities). Setting
+:math:`\partial\mathcal{L}/\partial\pi_k = 0` gives:
 
 .. math::
 
@@ -502,12 +540,19 @@ points assigned to component :math:`k`. Setting :math:`\partial\mathcal{L}/\part
    \quad\Longrightarrow\quad
    \pi_k = \frac{N_k}{\lambda}.
 
-Summing over :math:`k`: :math:`1 = \sum_k N_k / \lambda`, so :math:`\lambda = n` and
+To find :math:`\lambda`, use the constraint: summing :math:`\pi_k = N_k/\lambda`
+over all :math:`k` gives :math:`1 = \sum_k N_k / \lambda = n/\lambda`
+(because the responsibilities sum to :math:`n`), so :math:`\lambda = n` and
 
 .. math::
    :label: pi_update
 
    \pi_k^{(t+1)} = \frac{N_k}{n}.
+
+The new mixing weight for component :math:`k` is simply the fraction of the
+total "soft count" assigned to that component. If component :math:`k` is
+responsible for 30% of the data points (in the soft, responsibility-weighted
+sense), then :math:`\pi_k = 0.30`.
 
 **Means.** For each component :math:`k`, maximize
 
@@ -548,7 +593,12 @@ using the standard matrix-calculus result for the MLE of a Gaussian covariance):
    = \frac{1}{N_k}\sum_{i=1}^n \gamma_{ik}^{(t)}\,
      (x_i - \boldsymbol{\mu}_k^{(t+1)})(x_i - \boldsymbol{\mu}_k^{(t+1)})^{\!\top}.
 
-This is the responsibility-weighted sample covariance.
+This is the responsibility-weighted sample covariance. The pattern across all
+three M-step updates is the same: each formula looks exactly like the ordinary
+MLE formula (sample proportion, sample mean, sample covariance), except that
+each observation is weighted by its responsibility :math:`\gamma_{ik}^{(t)}`
+for component :math:`k`. When responsibilities are hard (0 or 1), these reduce
+to the standard formulas applied to each cluster separately.
 
 Let us trace one M-step so we can see the old and new parameters side by side.
 
@@ -1087,7 +1137,11 @@ The optimal :math:`q_j` (holding others fixed) satisfies
    + \text{const},
 
 where :math:`\mathbb{E}_{q_{-j}}` denotes expectation over all latent variables
-except :math:`Z_j`. This yields a coordinate-ascent algorithm on the ELBO.
+except :math:`Z_j`. In words: to find the best approximation for one group of
+latent variables, average the log-joint over all the other groups using their
+current approximate distributions. The result often has a recognizable form
+(e.g., a Gaussian or Dirichlet), making each update tractable. Cycling through
+all groups yields a coordinate-ascent algorithm on the ELBO.
 
 Because the variational E-step does not make the bound perfectly tight, the
 monotone-ascent guarantee applies to the ELBO, not to the log-likelihood
@@ -1112,9 +1166,14 @@ Near a stationary point :math:`\boldsymbol{\theta}^*`, the EM iterates satisfy
    \;\approx\;
    \mathbf{M}\,(\boldsymbol{\theta}^{(t)} - \boldsymbol{\theta}^*),
 
-where :math:`\mathbf{M}` is the **EM rate matrix**. The convergence is
-**linear** (geometric), with rate equal to the spectral radius of
-:math:`\mathbf{M}`.
+Reading this formula: the error at iteration :math:`t+1` is approximately
+a linear transformation of the error at iteration :math:`t`. This is the
+hallmark of linear (geometric) convergence: each step shrinks the error by a
+fixed factor. The matrix :math:`\mathbf{M}` is the **EM rate matrix**, and the
+convergence rate is the spectral radius (largest eigenvalue in magnitude) of
+:math:`\mathbf{M}`. If the largest eigenvalue is 0.9, each iteration only
+reduces the error by 10%; if it is 0.1, each iteration removes 90% of the
+error.
 
 The Fraction of Missing Information
 -------------------------------------
@@ -1131,20 +1190,24 @@ Dempster, Laird, and Rubin (1977) showed that
 
 where
 
-- :math:`\mathcal{I}_{\text{com}}` is the (expected) complete-data information,
-- :math:`\mathcal{I}_{\text{obs}}` is the observed-data information.
+- :math:`\mathcal{I}_{\text{com}}` is the (expected) complete-data information
+  --- how much information the data *would* carry if we could see everything,
+- :math:`\mathcal{I}_{\text{obs}}` is the observed-data information --- how
+  much information the data *actually* carry with the latent variables hidden.
 
-The **missing information** is
-:math:`\mathcal{I}_{\text{mis}} = \mathcal{I}_{\text{com}} - \mathcal{I}_{\text{obs}}`,
-so
+The **missing information** is the difference:
+:math:`\mathcal{I}_{\text{mis}} = \mathcal{I}_{\text{com}} - \mathcal{I}_{\text{obs}}`.
+It captures the information that is "lost" because the latent variables are
+hidden. Substituting this into the rate matrix formula gives:
 
 .. math::
 
    \mathbf{M}
    = \mathcal{I}_{\text{obs}}^{-1}\,\mathcal{I}_{\text{mis}}.
 
-The fraction of missing information is (roughly) the largest eigenvalue of
-:math:`\mathbf{M}`. When most of the information is missing (e.g., heavy
+Reading this: EM's convergence rate is the ratio of missing information to
+observed information. The fraction of missing information is (roughly) the
+largest eigenvalue of :math:`\mathbf{M}`. When most of the information is missing (e.g., heavy
 censoring, many latent variables), :math:`\mathbf{M}` is near the identity and
 EM converges very slowly. When little information is missing, :math:`\mathbf{M}`
 is near zero and EM converges quickly.

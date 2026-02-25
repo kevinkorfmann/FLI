@@ -191,7 +191,13 @@ This motivates the AIC:
 
    \text{AIC} = -2\,\ell(\hat{\theta}) + 2p.
 
-We choose the model with the smallest AIC.  The factor of 2 is conventional.
+Reading this formula: the first term, :math:`-2\ell(\hat\theta)`, measures
+lack of fit --- a larger log-likelihood (better fit) makes this term smaller.
+The second term, :math:`2p`, adds a flat penalty of 2 units for every
+parameter you estimate.  Adding a useless parameter improves
+:math:`\ell(\hat\theta)` by roughly 1 on average (the bias Akaike identified),
+so the penalty of 2 roughly cancels that spurious improvement.  We choose the
+model with the smallest AIC.  The factor of 2 is conventional.
 
 **Intuition.**
 The first term rewards fit; the second term penalizes complexity.  Adding a
@@ -254,7 +260,12 @@ models:
 
    \text{AICc} = \text{AIC} + \frac{2p(p+1)}{n - p - 1}.
 
-When :math:`n` is large relative to :math:`p`, the correction is negligible.
+In plain English: the correction term adds an extra penalty that grows when
+the number of parameters :math:`p` is large relative to the sample size
+:math:`n`.  When :math:`n` is much larger than :math:`p`, the fraction becomes
+tiny and AICc essentially equals AIC.  When :math:`n` is small relative to
+:math:`p`, the correction can be substantial --- preventing AIC from favoring
+overly complex models in small-sample situations.
 As a rule of thumb, use AICc whenever :math:`n/p < 40`.
 
 
@@ -309,6 +320,14 @@ Multiplying by :math:`-2`:
 .. math::
 
    \text{BIC} = -2\,\ell(\hat{\theta}) + p\,\log n.
+
+Reading this formula: the BIC looks just like the AIC, but the penalty per
+parameter is :math:`\log n` instead of 2.  Since :math:`\log n > 2` for any
+sample size :math:`n \ge 8`, the BIC always penalizes complexity more harshly
+than AIC for even moderately sized datasets.  This heavier penalty comes from
+the BIC's Bayesian origin: it approximates the log marginal likelihood, which
+naturally penalizes models that waste prior probability mass on parameter
+regions that the data do not support.
 
 .. code-block:: python
 
@@ -413,6 +432,17 @@ deviance and :math:`p_D` is the *effective number of parameters*:
 
 with :math:`\bar{\theta} = E_{\text{post}}[\theta]` the posterior mean.
 
+Reading this formula: :math:`\bar{D}` is the average deviance when you plug
+in different posterior samples of :math:`\theta`, while
+:math:`D(\bar\theta)` is the deviance when you plug in the single posterior
+mean.  The difference :math:`p_D` measures how much the deviance "wiggles"
+across the posterior.  If the model has many free parameters, posterior
+samples will produce a wide range of deviance values, making :math:`\bar{D}`
+much larger than :math:`D(\bar\theta)`.  If the parameters are tightly
+constrained (e.g., through shrinkage in a hierarchical model), :math:`p_D`
+can be much less than the nominal parameter count --- reflecting the fact
+that the model is not really using all its degrees of freedom.
+
 Alternatively, :math:`p_D` can be defined as half the posterior variance of
 the deviance:
 
@@ -494,6 +524,12 @@ The **log pointwise predictive density** is:
    = \sum_{i=1}^n \log p(x_i \mid \mathbf{x})
    = \sum_{i=1}^n \log \int p(x_i \mid \theta)\, p(\theta \mid \mathbf{x})\, d\theta.
 
+In plain English: for each data point :math:`x_i`, we compute how well the
+*entire posterior distribution* predicts that point --- not just the best
+single parameter value, but an average over all plausible parameter values
+weighted by the posterior.  The lppd sums these predictive scores across all
+observations.
+
 In practice, using :math:`S` posterior draws:
 
 .. math::
@@ -502,6 +538,11 @@ In practice, using :math:`S` posterior draws:
    = \sum_{i=1}^n \log\!\left(\frac{1}{S}\sum_{s=1}^S
      p(x_i \mid \theta^{(s)})\right).
 
+Reading this formula: for each observation :math:`x_i`, we evaluate the
+likelihood at each posterior sample :math:`\theta^{(s)}`, average those
+likelihoods, and take the log.  This Monte Carlo average replaces the
+intractable integral.
+
 The effective number of parameters is:
 
 .. math::
@@ -509,11 +550,22 @@ The effective number of parameters is:
    p_{\text{WAIC}}
    = \sum_{i=1}^n \text{Var}_{\text{post}}\!\bigl[\log p(x_i \mid \theta)\bigr].
 
+In plain English: for each data point, we measure how much the log-likelihood
+varies across different posterior samples.  If the posterior is tightly
+concentrated (few effective parameters), this variance will be small.  If the
+model has many free parameters, different posterior draws will produce very
+different likelihoods for the same data point, resulting in high variance.
+Summing these variances gives the total effective complexity.
+
 The WAIC is:
 
 .. math::
 
    \text{WAIC} = -2\,\bigl(\widehat{\text{lppd}} - p_{\text{WAIC}}\bigr).
+
+This has the same "fit minus complexity" structure as AIC and BIC: the lppd
+measures fit, and :math:`p_{\text{WAIC}}` penalizes complexity.  The factor of
+:math:`-2` puts it on the same scale as AIC and BIC for easy comparison.
 
 .. code-block:: python
 
@@ -600,6 +652,14 @@ weights derived from the posterior:
 
    p(x_i \mid \mathbf{x}_{-i})
    \approx \frac{1}{\frac{1}{S}\sum_{s=1}^S \frac{1}{p(x_i \mid \theta^{(s)})}}.
+
+Reading this formula: the right-hand side is the *harmonic mean* of the
+likelihoods :math:`p(x_i \mid \theta^{(s)})` evaluated at the posterior
+samples.  Intuitively, leaving out observation :math:`x_i` would change the
+posterior, but we can approximately correct for this by reweighting the
+existing posterior samples --- giving less weight to samples that were strongly
+influenced by :math:`x_i`.  The inverse-likelihood terms
+:math:`1/p(x_i \mid \theta^{(s)})` serve as these importance weights.
 
 The Pareto smoothing stabilizes the importance weights by fitting a generalized
 Pareto distribution to the tail; the shape parameter :math:`\hat{k}` also
@@ -932,6 +992,13 @@ the LOO-CV predictive density:
 
    \hat{\mathbf{w}} = \arg\max_{\mathbf{w}}
    \sum_{i=1}^n \log\!\left(\sum_{k=1}^K w_k\, p(x_i \mid \mathbf{x}_{-i}, M_k)\right).
+
+In plain English: for each held-out observation, stacking asks "what
+combination of model predictions would have been most accurate?"  It then
+finds the set of weights that, across all leave-one-out predictions,
+maximizes the total predictive log-density.  This is a direct optimization
+of out-of-sample prediction quality, rather than an approximation to model
+evidence.
 
 Stacking is more robust than BMA when the true model is not in the candidate
 set, because it optimizes prediction rather than model identification.

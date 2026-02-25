@@ -639,8 +639,10 @@ probable value:
    = \arg\max_\theta \; p(\theta \mid \mathbf{x})
    = \arg\max_\theta \; \bigl[\log L(\theta) + \log p(\theta)\bigr].
 
-The MAP criterion is identical to *penalized likelihood* where the penalty is
-:math:`-\log p(\theta)`.
+In plain English: find the parameter value where the sum of the log-likelihood
+(how well the data fit) plus the log-prior (how plausible the parameter was
+before seeing data) is largest.  The MAP criterion is identical to *penalized
+likelihood* where the penalty is :math:`-\log p(\theta)`.
 
 .. admonition:: Intuition
 
@@ -1001,9 +1003,13 @@ The marginal likelihood (evidence) for model :math:`M_k` is:
    p(\mathbf{x} \mid M_k)
    = \int p(\mathbf{x} \mid \theta_k, M_k)\, p(\theta_k \mid M_k)\, d\theta_k.
 
-This integrates the likelihood over the entire prior, automatically penalizing
-complex models that spread their prior mass over large parameter spaces (a
-built-in Occam's razor).
+In plain English: to score a model, we average its likelihood across *all*
+parameter values the prior considers plausible --- not just the single best
+value.  A complex model that spreads its prior thinly across a vast parameter
+space will have most of that space wasted on poor-fitting parameter values,
+dragging the average down.  A simpler model concentrates its prior on a smaller
+region, so if the data agree with that region the average stays high.  This is
+a built-in Occam's razor: complexity is penalized automatically.
 
 .. code-block:: python
 
@@ -1050,6 +1056,11 @@ The Bayes factor comparing :math:`M_1` to :math:`M_2` is:
    \text{BF}_{12}
    = \frac{p(\mathbf{x} \mid M_1)}{p(\mathbf{x} \mid M_2)}.
 
+Reading this formula: the Bayes factor is simply the ratio of how well each
+model predicted the observed data, averaged over their respective priors.
+A Bayes factor of 10 means model 1 predicted the data ten times better
+than model 2.
+
 Using Bayes' theorem on models:
 
 .. math::
@@ -1058,7 +1069,11 @@ Using Bayes' theorem on models:
    = \text{BF}_{12} \;\times\;
      \frac{p(M_1)}{p(M_2)}.
 
-The posterior odds equal the Bayes factor times the prior odds.
+In plain English: the posterior odds (how much you believe in model 1 versus
+model 2 after seeing the data) equal the Bayes factor (the evidence from the
+data) times the prior odds (how much you believed in each model before seeing
+the data).  If you start with equal prior odds, the posterior odds are simply
+the Bayes factor.
 
 **Interpretation (Kass and Raftery, 1995).**
 
