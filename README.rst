@@ -10,7 +10,7 @@ Read Online
 
 The documentation is hosted on Read the Docs:
 
-https://likelihoodsandoptimization.readthedocs.io/
+https://fli.readthedocs.io/
 
 Getting Started
 ===============
