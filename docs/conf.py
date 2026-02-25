@@ -113,10 +113,10 @@ html_sidebars = {
     "**": [
         "sidebar/brand.html",
         "sidebar/search.html",
+        "sidebar/donate.html",
         "sidebar/scroll-start.html",
         "sidebar/navigation.html",
         "sidebar/scroll-end.html",
-        "sidebar/donate.html",
     ],
 }
 
