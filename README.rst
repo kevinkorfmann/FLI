@@ -2,15 +2,49 @@
 Likelihood-Based Inference
 ==============================
 
-A comprehensive, novice-accessible guide covering likelihood-based inference
-from basic probability through research-grade algorithms.
+*From Foundations to Research*
+
+A comprehensive, novice-accessible guide to likelihood-based statistical
+inference. Every result is derived from first principles with plain-English
+explanations alongside the mathematics, accompanied by runnable Python code
+that demonstrates and verifies each formula.
+
+.. image:: https://img.shields.io/badge/Support_this_project-PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white
+   :target: https://www.paypal.com/donate/?hosted_button_id=VTASTXN2KAFJQ
+   :alt: Donate via PayPal
 
 Read Online
 ===========
 
-The documentation is hosted on Read the Docs:
-
 https://fli.readthedocs.io/en/latest/
+
+Contents
+========
+
+**Part I — Foundations** (Chapters 1--4)
+  Probability basics, random variables, common distributions, and the
+  likelihood function.
+
+**Part II — The Likelihood Catalogue** (Chapters 5--8)
+  Discrete, continuous, multivariate, and specialized likelihoods — each
+  family with its PDF, log-likelihood, score, Fisher information, and MLE.
+
+**Part III — Maximum Likelihood Estimation** (Chapters 9--11)
+  MLE theory and large-sample properties, closed-form derivations for major
+  families, confidence intervals, and the likelihood-ratio / Wald / score
+  tests.
+
+**Part IV — Optimization for Likelihood** (Chapters 12--16)
+  Gradient descent, Newton and Fisher scoring, quasi-Newton (BFGS, L-BFGS),
+  the EM algorithm, and constrained optimization.
+
+**Part V — Advanced and Research Topics** (Chapters 17--21)
+  Bayesian connections, computational methods (MCMC, variational inference),
+  model selection (AIC/BIC/cross-validation), modern research frontiers, and
+  numerical considerations.
+
+**Appendices**
+  Linear algebra review, calculus review, notation and glossary.
 
 Getting Started
 ===============
@@ -19,46 +53,25 @@ Install dependencies::
 
     pip install -r requirements.txt
 
-Build the HTML documentation locally::
+Build the HTML docs locally::
 
     cd docs
     make html
     # Open _build/html/index.html in your browser
 
-Build the PDF book::
+Build the PDF::
 
-    python build_book.py
-
-Structure
-=========
-
-- **Part I — Foundations**: Probability, random variables, distributions, the likelihood function
-- **Part II — Likelihood Catalogue**: Discrete, continuous, multivariate, and specialized likelihoods
-- **Part III — Maximum Likelihood Estimation**: Theory, analytical solutions, testing and confidence intervals
-- **Part IV — Optimization**: Gradient methods, Newton methods, quasi-Newton, EM algorithm, constrained optimization
-- **Part V — Advanced Topics**: Bayesian connections, computational methods, model selection, modern research, numerical considerations
-- **Appendices**: Linear algebra review, calculus review, notation glossary
+    python build_book.py          # incremental
+    python build_book.py --clean  # full rebuild
 
 Running Code Examples
 =====================
 
-Every chapter includes runnable Python code blocks that demonstrate and verify
-the mathematical formulas. To run them you need NumPy, SciPy, and Matplotlib::
+Every chapter includes self-contained Python code blocks with
+``np.random.seed(42)`` for reproducibility. Copy any block into a script or
+Jupyter notebook and run it directly. The only runtime dependencies are::
 
     pip install numpy scipy matplotlib
-
-The code blocks are self-contained — each one includes its own imports and uses
-``np.random.seed(42)`` for reproducibility. You can copy any block into a
-Python script or Jupyter notebook and run it directly.
-
-Support
-=======
-
-If you find this resource helpful, consider supporting its development:
-
-.. image:: https://img.shields.io/badge/Support_this_project-PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white
-   :target: https://www.paypal.com/donate/?hosted_button_id=VTASTXN2KAFJQ
-   :alt: Donate via PayPal
 
 Disclaimer
 ==========
