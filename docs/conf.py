@@ -104,8 +104,8 @@ html_theme_options = {
         "color-header-background": "#f3efe9",
         "color-header-border": "#e0d9cf",
     },
-    "light_logo": "cover.jpg",
-    "dark_logo": "cover.jpg",
+    "light_logo": "logo.jpg",
+    "dark_logo": "logo.jpg",
 }
 
 # -- LaTeX output ------------------------------------------------------------
