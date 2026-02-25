@@ -10,7 +10,7 @@ Read Online
 
 The documentation is hosted on Read the Docs:
 
-https://fli.readthedocs.io/
+https://fli.readthedocs.io/en/latest/
 
 Getting Started
 ===============
