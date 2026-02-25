@@ -56,7 +56,9 @@ Support
 
 If you find this resource helpful, consider supporting its development:
 
-`Donate via PayPal <https://www.paypal.com/donate/?hosted_button_id=VTASTXN2KAFJQ>`_
+.. image:: https://img.shields.io/badge/Support_this_project-PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white
+   :target: https://www.paypal.com/donate/?hosted_button_id=VTASTXN2KAFJQ
+   :alt: Donate via PayPal
 
 Disclaimer
 ==========
