@@ -135,6 +135,28 @@ div.math {
     background: #bab2a7;
 }
 
+/* Sidebar donate button */
+.sidebar-donate {
+    padding: 0.75rem 1rem;
+}
+
+.donate-button {
+    display: block;
+    text-align: center;
+    padding: 0.5em 1em;
+    background: #4a7c72;
+    color: #fff !important;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none !important;
+    transition: background 0.2s;
+}
+
+.donate-button:hover {
+    background: #3d6e64;
+}
+
 /* Cover hero section for the landing page */
 .cover-hero {
     position: relative;

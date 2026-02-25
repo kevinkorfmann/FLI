@@ -106,6 +106,18 @@ html_theme_options = {
     },
     "light_logo": "logo.jpg",
     "dark_logo": "logo.jpg",
+    "sidebar_hide_name": False,
+}
+
+html_sidebars = {
+    "**": [
+        "sidebar/brand.html",
+        "sidebar/search.html",
+        "sidebar/scroll-start.html",
+        "sidebar/navigation.html",
+        "sidebar/scroll-end.html",
+        "sidebar/donate.html",
+    ],
 }
 
 # -- LaTeX output ------------------------------------------------------------

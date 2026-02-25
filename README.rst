@@ -51,6 +51,13 @@ The code blocks are self-contained — each one includes its own imports and use
 ``np.random.seed(42)`` for reproducibility. You can copy any block into a
 Python script or Jupyter notebook and run it directly.
 
+Support
+=======
+
+If you find this resource helpful, consider supporting its development:
+
+`Donate via PayPal <https://www.paypal.com/donate/?hosted_button_id=VTASTXN2KAFJQ>`_
+
 Disclaimer
 ==========
 
